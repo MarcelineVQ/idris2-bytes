@@ -1,0 +1,9 @@
+package bytes
+
+modules = Data.Bytes.FFI
+        , Data.Bytes.Internal
+        , Data.Bytes
+
+sourcedir = "src"
+
+depends = contrib
