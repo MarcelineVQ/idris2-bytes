@@ -4,10 +4,6 @@ import public Data.Bytes.Internal
 
 import Data.Word.Word8
 
-import Data.List -- List.length
-
-import System -- sleep test
-
 -- Unfortunately neccesary addition atm, no idea why. For some reason things
 -- from Data.Buffer are in scope.
 %hide Data.Buffer.getByte
@@ -261,46 +257,4 @@ intercalate bs@(MkB p s l) bss =
 
 transpose : List Bytes -> List Bytes
 
-
-
-trybs1 : Bytes -> IO ()
-trybs1 bs = printLn $ unpack bs
-
-trybs2 : Show a => (Bytes -> a) -> Bytes -> IO ()
-trybs2 f bs = printLn (f bs)
-
-trybs3 : IO ()
-trybs3 = printLn (foldr (+) 0 (pack [1,2,3]))
-
 -}
-
-faf1 : Bytes
-faf1 = foldr cons empty (replicate 20000 3)
-
-faf2 : Bytes
-faf2 = foldl snoc empty (replicate 20 3)
--- :exec printLn (tail (pack [1,5,6,9] `snoc` 3))
-
-
--- 2.1g residency
-test : IO ()
-test = do
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1
-    printLn faf1 <* sleep 1

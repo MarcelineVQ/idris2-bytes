@@ -13,17 +13,18 @@ moduleName = "Data.Bytes.Prim"
 -- Operations for blocks of memory
 ---------------------------------------------------------------------
 
--- This is only portable so long as idris2 prefers scheme as the backend. It'd
+-- This is only useable so long as idris2 prefers scheme as the backend. It'd
 -- be better to add this equivalent to Data.Buffer in base so that backend
 -- makers are incentivised to support it broadly.
 %foreign "scheme:eq?"
-prim__exactEqBuff : Buffer -> Buffer -> PrimIO Bool
+prim_exactEqBuff : Buffer -> Buffer -> PrimIO Bool
 -- TODO: Check if I can use AnyPtr equality here.
+
 
 -- Compare if two Buffers are the same object, in the sense of ptr equality.
 export
 exactEqBuff : Buffer -> Buffer -> IO Bool
-exactEqBuff x y = primIO $ prim__exactEqBuff x y
+exactEqBuff x y = primIO $ prim_exactEqBuff x y
 
 
 -- Bytes are immutable blocks of memory. Here we create enforcement that the

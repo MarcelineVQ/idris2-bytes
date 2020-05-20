@@ -2,7 +2,9 @@ package bytes
 
 modules = Data.Bytes
         , Data.Bytes.Internal
+        , Data.Bytes.Prim
+        , Data.Word.Word8
 
 sourcedir = "src"
 
-depends = contrib
+depends = base

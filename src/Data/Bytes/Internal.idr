@@ -1,15 +1,13 @@
 module Data.Bytes.Internal
 
--- import Data.Bytes.Util
+import Data.Bytes.Util
 import Data.Bytes.Prim
 
 import Data.Word.Word8
 
-import Data.List
-
 -- Unfortunately neccesary addition atm, no idea why. For some reason things
 -- from Data.Buffer are in scope.
--- For instances I shouldn't be able to define Bytes here as it uses Buffer
+-- For instance I shouldn't be able to define Bytes here as it uses Buffer
 -- from Data.Bytes which is not re-exported from Data.Byets.Prim
 %hide Data.Buffer.getByte
 
@@ -46,25 +44,6 @@ export
 nonEmpty : (b : Bytes) -> Dec (NonEmpty b)
 nonEmpty (MkB _ _ 0) = No (\case _ impossible)
 nonEmpty (MkB _ _ (S _)) = Yes IsNonEmpty
-
-----------------------------------------------------------------------
--- Helpers
-----------------------------------------------------------------------
-
-infixl 4 <$,$>
-
--- export
-(<$) : Functor f => a -> f b -> f a
-x <$ y = map (const x) y
-
--- export
-($>) : Functor f => f a -> b -> f b
-($>) = flip (<$)
-
--- For when Lazy is causing type problems
-infixr 4 &&|
-(&&|) : Bool -> Bool -> Bool
-(&&|) x y = x && y
 
 ----------------------------------------------------------------------
 
@@ -137,28 +116,24 @@ compareBytes (MkB xb xpos xlen) (MkB yb ypos ylen) =
 -- perhaps in ghc length has a cheaper comparison than than the extra
 -- foreignPtr prodding that ptr equality needs.
 
--- Are we nominally equal?
+-- To ask if we are nominally equal.
 infixl 9 `basicEq`
+private
 basicEq : Bytes -> Bytes -> Bool
-x@(MkB xb xpos xlen) `basicEq` y@(MkB yb ypos ylen)
-    = xlen == ylen && (unsafePerformIO (exactEqBuff xb yb) && xpos == ypos)
+MkB xb xpos xlen `basicEq` MkB yb ypos ylen
+    = xlen == ylen &&| (unsafePerformIO (exactEqBuff xb yb) &&| xpos == ypos)
 
 export
 implementation
 Eq Bytes where
   x == y = x `basicEq` y || compareBytes x y == EQ
 
+-- basicEq is much speedier than comparison, use it when possible!
+export
 Ord Bytes where
   compare = compareBytes
   x >= y = x `basicEq` y || compareBytes x y == GT
   x <= y = x `basicEq` y || compareBytes x y == LT
-
-
-foo : IO ()
-foo = do 
-  let b@(MkB buf pos len) = unsafeCreateBytes 3 (\_ => pure ())
-  print (b == b)
-
 
 export
 Semigroup Bytes where
