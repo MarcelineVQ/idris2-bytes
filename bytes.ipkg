@@ -1,8 +1,7 @@
 package bytes
 
-modules = Data.Bytes.FFI
+modules = Data.Bytes
         , Data.Bytes.Internal
-        , Data.Bytes
 
 sourcedir = "src"
 

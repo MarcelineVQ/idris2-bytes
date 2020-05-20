@@ -1,106 +1,71 @@
 module Data.Bytes.Prim
 
-import Data.Bytes.FFI
-
 import Data.Bytes.Util
 
-import Data.IOArray
+import Data.Buffer -- Why is this visible in Data.Bytes + Data.Bytes.Internal?
+
+import Data.Word.Word8
 
 moduleName : String
 moduleName = "Data.Bytes.Prim"
-
--- Should everything actually be using Ptr Word8?
-
-
-
----------------------------------------------------------------------
--- Ptr operations
---------------------------------------------------------------------
-
-export
-peek : AnyPtr -> IO Word8
-peek p = primIO $ prim__getByte p 0
-
-export
-poke : AnyPtr -> Word8 -> IO ()
-poke p v = primIO $ prim__setByte p 0 v
-
-export
-ptrToInt : AnyPtr -> Int
-ptrToInt = believe_me 
-
-export
-intToPtr : Int -> AnyPtr
-intToPtr = believe_me 
-
-export
-plusPtr : AnyPtr -> Int -> AnyPtr
-plusPtr p n = intToPtr . (+ n) . ptrToInt $ p
-
-infixl 4 `eq`  
-export
-eq : AnyPtr -> AnyPtr -> Bool
-p `eq` q = ptrToInt p == ptrToInt q
-
--- export
--- -- Return non-zero if the pointer is null
--- isNullPtr : AnyPtr -> Bool
--- isNullPtr p = case prim__nullPtr p of
---                 0 => False
---                 _ => True
 
 ---------------------------------------------------------------------
 -- Operations for blocks of memory
 ---------------------------------------------------------------------
 
--- export
--- getBlockSize : AnyPtr -> Int
--- getBlockSize = prim__blockSize
+-- This is only portable so long as idris2 prefers scheme as the backend. It'd
+-- be better to add this equivalent to Data.Buffer in base so that backend
+-- makers are incentivised to support it broadly.
+%foreign "scheme:eq?"
+prim__exactEqBuff : Buffer -> Buffer -> PrimIO Bool
+-- TODO: Check if I can use AnyPtr equality here.
 
--- export
--- freeBlock : AnyPtr -> IO ()
--- freeBlock = primIO . prim__freeBlock
+-- Compare if two Buffers are the same object, in the sense of ptr equality.
+export
+exactEqBuff : Buffer -> Buffer -> IO Bool
+exactEqBuff x y = primIO $ prim__exactEqBuff x y
+
+
+-- Bytes are immutable blocks of memory. Here we create enforcement that the
+-- only place we're allowed to mutate a buffer is somewhere we're creating a
+-- new one.
 
 export
-setByte : (p : Block) -> (loc : Int) -> (val : Word8) -> IO ()
-setByte p loc val = primIO $ prim__arraySet p loc val
+getByte : Buffer -> (loc : Int) -> IO Word8
+getByte b loc = cast <$> Data.Buffer.getByte b loc
 
-export
-getByte : (1 p : Block) -> Int -> IO Word8
-getByte p loc = primIO $ prim__arrayGet p loc
+namespace Mutable
+  export
+  data MutBuffer = MkMB Buffer
 
--- Our primitives don't provide a copy
-export
-copyBlock : (src : Block) -> (s_loc : Int) -> (count : Int)
-         -> (dest : Block) -> (d_loc : Int) -> IO ()
-copyBlock s s_loc count d d_loc = go count
-  where
-    go : Int -> IO ()
-    go c = if c > 0
-      then do let c' = c - 1
-              x <- getByte s (s_loc + c')
-              setByte d (d_loc + c') x
-              go c'
-      else pure ()
+  export
+  setByte : MutBuffer -> Int -> Word8 -> IO ()
+  setByte (MkMB mb) pos v = Data.Buffer.setByte mb pos (cast v)
 
+  export
+  copyBuffer : (src : Buffer) -> (start, len : Int) ->
+               (dest : MutBuffer) -> (loc : Int) -> IO ()
+  copyBuffer src start len (MkMB dest) loc
+    = Data.Buffer.copyData src start len dest loc
 
--- idk man, we don't have failure reporting for this primitive.
--- I wish we had some cleanup method for the c stuff.
-export
-allocateBlock : Int -> IO Block
-allocateBlock len
-    = do block <- primIO (prim__newArray len 1)
-         if len > 0
-           then if !(getByte block 0) /= 1
-             then errorCall moduleName "allocateBlock" "allocation failed"
-             else pure block
-           else pure block
+  -- getByte overload, a typeclass for Buffer+MutBuffer would be silly
+  export
+  getByte : MutBuffer -> (loc : Int) -> IO Word8
+  getByte (MkMB mb) loc = cast <$> Data.Buffer.getByte mb loc
 
--- allocate and then use a function to populate the Block
-export
-allocateAndFill : Int -> (Block -> IO ()) -> IO Block
-allocateAndFill len f = do
-  b <- allocateBlock len
-  f b
-  pure b
+  -- Kind of a weird one, Data.Buffer.newBuffer can't actually return a Nothing
+  -- currently. 18/5/2020
+  private
+  allocateBlock : Int -> IO Buffer
+  allocateBlock len
+    = do Just block <- newBuffer len
+           | Nothing => errorCall moduleName "allocateBlock" "allocation failed"
+         pure block
 
+  -- allocate and then use a function to populate the block
+  export
+  allocateAndFill : Int -> (MutBuffer -> IO ()) -> IO Buffer
+  allocateAndFill len f = do
+    b <- allocateBlock len
+    f (MkMB b)
+    pure b
