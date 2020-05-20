@@ -27,13 +27,14 @@ exactEqBuff : Buffer -> Buffer -> IO Bool
 exactEqBuff x y = primIO $ prim_exactEqBuff x y
 
 
--- Bytes are immutable blocks of memory. Here we create enforcement that the
--- only place we're allowed to mutate a buffer is somewhere we're creating a
--- new one.
-
 export
 getByte : Buffer -> (loc : Int) -> IO Word8
 getByte b loc = cast <$> Data.Buffer.getByte b loc
+
+
+-- Bytes are immutable blocks of memory. Here we create enforcement that the
+-- only place we're allowed to mutate a buffer is somewhere we're creating a
+-- new one.
 
 namespace Mutable
   export
@@ -63,7 +64,10 @@ namespace Mutable
            | Nothing => errorCall moduleName "allocateBlock" "allocation failed"
          pure block
 
-  -- allocate and then use a function to populate the block
+  -- Allocate and then use a function to populate the block.
+  -- Importantly, this is the only place in Bytes that we can work with a
+  -- MutBuffer, and by extention it means that only here where a new Buffer is
+  -- being made can we mutate.
   export
   allocateAndFill : Int -> (MutBuffer -> IO ()) -> IO Buffer
   allocateAndFill len f = do

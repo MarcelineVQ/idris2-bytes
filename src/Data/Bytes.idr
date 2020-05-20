@@ -21,7 +21,8 @@ Pretty standard (strict) ByteString kind of stuff. Some operations have `'`
 particular operations which require `NonEmpty` proof have their `'` versions
 give runtime errors on bad inputs instead.
 
-This hopefully demonstrates the Idris community spirit: be provably safe when it can be made convenient, but don't force anyone to jump through hoops.
+This hopefully demonstrates the Idris community spirit: be provably safe when
+it can be made convenient, but don't force anyone to jump through hoops.
 I'm sure there's better wording for that though.
 
 Included are some intended complexity values. They might be a lie since I don't
@@ -32,13 +33,13 @@ Open Design Questions:
 
 Is there a reason to allow negative position values in a Bytes? If we were
 using pointers there might be some cute things we could do with that but
-overall it doesn't really seem useful. If we can get Nat or Fin to compile to
-Int, instead of the Integer that Nar compiles to, then Nat for both fields of
-Bytes makes sense.
+overall it doesn't really seem useful.
+If we can get Nat or Fin to compile to Int, instead of the Integer that Nat
+compiles to, then Nat for both fields of Bytes makes sense.
 
 https://hackage.haskell.org/package/bytestring-0.10.10.0/docs/src/Data.ByteString.Internal.html#concat
 Should helpers take all their arguments explicitly to avoid capturing as much
-in closures? Does this happen in idris?
+in closures? Does this even happen in idris?
 
 
 If you feel something is missing from the API it might not be! Bytes.Internal

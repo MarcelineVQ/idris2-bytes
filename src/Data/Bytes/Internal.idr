@@ -8,7 +8,7 @@ import Data.Word.Word8
 -- Unfortunately neccesary addition atm, no idea why. For some reason things
 -- from Data.Buffer are in scope.
 -- For instance I shouldn't be able to define Bytes here as it uses Buffer
--- from Data.Bytes which is not re-exported from Data.Byets.Prim
+-- from Data.Bytes which is not re-exported from Data.Bytes.Prim
 %hide Data.Buffer.getByte
 
 private
@@ -121,7 +121,7 @@ infixl 9 `basicEq`
 private
 basicEq : Bytes -> Bytes -> Bool
 MkB xb xpos xlen `basicEq` MkB yb ypos ylen
-    = xlen == ylen &&| (unsafePerformIO (exactEqBuff xb yb) &&| xpos == ypos)
+    = xlen == ylen && (unsafePerformIO (exactEqBuff xb yb) && xpos == ypos)
 
 export
 implementation
