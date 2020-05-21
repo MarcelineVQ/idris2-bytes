@@ -1,4 +1,4 @@
-package bytes
+package testbytes
 
 authors    = "MarcelineVQ"
 version    = "1.1.1.1"
@@ -9,14 +9,16 @@ sourceloc  = "https://github.com/MarcelineVQ/idris2-bytes.git"
 bugtracker = "https://github.com/MarcelineVQ/idris2-bytes/issues"
 
 license    = "CC0 (refer to LICENSE file)"
-brief      = "Immutable chunks of bytes for Idris2"
+brief      = "Test suit for Bytes"
 
-modules = Data.Bytes
-        , Data.Bytes.Internal
-        , Data.Bytes.Prim
+modules = Test
+        , Test.Generate
+        -- , SmallCheck
 
-        , Data.Word.Word8
+sourcedir = "test"
 
-sourcedir = "src"
+main = Test
 
-depends = base
+prebuild = "idris2 --build bytes.ipkg"
+
+depends = base, contrib, bytes

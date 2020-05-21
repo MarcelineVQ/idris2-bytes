@@ -52,11 +52,13 @@ implements common interfaces, be sure to check there first. e.g. <+>
 ---------------------------------------------------------------------
 
 -- Intended complexity: O(1)
+export
 empty : Bytes
 empty = neutral
 
 -- Intended complexity: O(1)
 -- Provides NonEmpty
+export
 singleton : Word8 -> Bytes
 singleton w = unsafeCreateBytes 1 $ \p => setByte p 0 w
 
@@ -70,10 +72,12 @@ packLenBytes len xs0
     go p buf (x::xs) = setByte buf p x *> go (p+1) buf xs
 
 -- Intended complexity: O(n)
+export
 pack : List Word8 -> Bytes
 pack xs = packLenBytes (length xs) xs
 
 -- Intended complexity: O(n)
+export
 unpack : Bytes -> List Word8
 unpack (MkB fp pos len) =
   if pos < 0 then errorCall moduleName "unpack" "position was negative"
@@ -96,6 +100,7 @@ null buf = 0 >= length buf
 
 -- Intended complexity: O(1)
 -- Provides NonEmpty
+export
 cons : Word8 -> Bytes -> Bytes
 cons x (MkB p0 pos len)
     = do unsafeCreateBytes (1 + len) $ \p => do
@@ -104,6 +109,7 @@ cons x (MkB p0 pos len)
 
 -- Intended complexity: O(1)
 -- Provides NonEmpty
+export
 snoc : Bytes -> Word8 -> Bytes
 snoc (MkB p0 pos len) x
   = unsafeCreateBytes (1 + len) $ \p => do
@@ -112,66 +118,78 @@ snoc (MkB p0 pos len) x
       setByte p s' x
 
 -- Intended complexity: O(1)
+export
 head : (b : Bytes) -> NonEmpty b => Word8
 head (MkB p _ _) = unsafePerformIO (getByte p 0)
 
+export
 head' : (b : Bytes) -> Word8
 head' (MkB p s l) = if 0 >= s
   then errorCall moduleName "head" "buffer empty"
   else unsafePerformIO (getByte p 0)
 
 -- Intended complexity: O(1)
+export
 tail : (b : Bytes) -> NonEmpty b => Bytes
 tail (MkB p pos (S len)) = MkB p (1 + pos) len
 
+export
 tail' : Bytes -> Bytes
 tail' (MkB p _ Z) = errorCall moduleName "tail" "buffer empty"
 tail' (MkB p pos (S len)) = MkB p (1 + pos) len
 
 -- Intended complexity: O(1)
-
+export
 uncons : (b : Bytes) -> NonEmpty b => (Word8, Bytes)
 uncons bs@(MkB _ _ _) = (head bs, tail bs)
 
+export
 uncons' : Bytes -> Maybe (Word8, Bytes)
 uncons'    (MkB _ _ Z) = Nothing
 uncons' bs@(MkB _ _ (S _)) = Just $ (head bs, tail bs)
 
+export
 uncons'' : Bytes -> (Word8, Bytes)
 uncons''    (MkB _ _ Z) = errorCall moduleName "uncons''" "buffer empty"
 uncons'' bs@(MkB _ _ (S _)) = (head bs, tail bs)
 
 -- Intended complexity: O(1)
-
+export
 last : (b : Bytes) -> NonEmpty b => Word8
 last (MkB p pos len) = unsafePerformIO (getByte p (cast len + pos - 1))
 
+export
 last' : Bytes -> Word8
 last' (MkB _ _ Z) = errorCall moduleName "last" "buffer empty"
 last' (MkB p pos len) = unsafePerformIO (getByte p (cast len + pos - 1))
 
 -- Intended complexity: O(1)
-
+export
 init : (b: Bytes) -> NonEmpty b => Bytes
 init (MkB p pos (S len)) = MkB p pos len
 
+export
 init' : Bytes -> Bytes
 init' (MkB _ _ Z) = errorCall moduleName "init" "buffer empty"
 init' (MkB p pos (S len)) = MkB p pos len
 
 -- Intended complexity: O(1)
+export
 unsnoc : (b : Bytes) -> NonEmpty b => (Bytes, Word8)
 unsnoc bs@(MkB _ _ (S _)) = (init bs, last bs)
 
+export
 unsnoc' : Bytes -> Maybe (Bytes, Word8)
 unsnoc' (MkB _ _ Z) = Nothing
 unsnoc' bs@(MkB _ _ (S _)) = Just $ (init bs, last bs)
 
+export
 unsnoc'' : Bytes -> (Bytes, Word8)
 unsnoc'' (MkB _ _ Z) = errorCall moduleName "last" "buffer empty"
 unsnoc'' bs@(MkB _ _ (S _)) = (init bs, last bs)
 
 -- Intended complexity: O(n)
+export
 foldl : (a -> Word8 -> a) -> a -> Bytes -> a
 foldl f v (MkB b pos len)
     = unsafePerformIO $ go v pos (cast len + pos)
@@ -182,6 +200,7 @@ foldl f v (MkB b pos len)
                   else go (f z !(getByte b p)) (p+1) q
 
 -- Intended complexity: O(n)
+export
 foldr : (Word8 -> a -> a) -> a -> Bytes -> a
 foldr f v (MkB bs pos len)
     = unsafePerformIO $ go v (cast len + pos) pos
@@ -192,6 +211,7 @@ foldr f v (MkB bs pos len)
                   else go (f !(getByte bs p) z) (p-1) q
 
 -- Intended complexity: O(n)
+export
 map : (Word8 -> Word8) -> Bytes -> Bytes
 map f (MkB b0 pos len)
     = unsafeCreateBytes len $ \new => map_ 0 (cast len) new
@@ -204,6 +224,7 @@ map f (MkB b0 pos len)
                                map_ (p+1) q buf
 
 -- Intended complexity: O(n)
+export
 reverse : Bytes -> Bytes
 reverse b@(MkB buf pos len) = unsafeCreateBytes len $ \new =>
     rev_ 0 (cast len - 1) new

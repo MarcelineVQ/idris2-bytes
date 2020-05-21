@@ -9,6 +9,7 @@ import Data.Word.Word8
 -- from Data.Buffer are in scope.
 -- For instance I shouldn't be able to define Bytes here as it uses Buffer
 -- from Data.Bytes which is not re-exported from Data.Bytes.Prim
+-- Supposedly this is also occuring in contrib:Data/List/TailRec.idr
 %hide Data.Buffer.getByte
 
 private
