@@ -24,21 +24,31 @@ public export
 data Bytes : Type where
      MkB : (b : Buffer) -> (pos : Int) -> (len : Int) -> Bytes
 
--- It'd be nice to be able to provide NonEmpty based on `len` but it's quite a hassle to have a Nat here with the various castings around the codebase and other concerns.
+-- It'd be nice to be able to provide NonEmpty based on `len` but it's quite a
+-- hassle to have a Nat here with the various castings around the codebase and
+-- other concerns.
 
 public export
 data NonEmpty : Bytes -> Type where
-  IsNonEmpty : So (len >= 0) -> NonEmpty (MkB _ _ len)
+  IsNonEmpty : So (len > 0) -> NonEmpty (MkB _ _ len)
 
 -- ^ how can I provide this proof without making the user need access
 -- to MkB? Simply by having my own functions imlpicity prove that when
 -- used? Things like cons and singleton and append? And if a
 -- ByteString comes from elsewhere we use Dec?
 
--- export
--- nonEmpty : (b : Bytes) -> Dec (NonEmpty b)
--- nonEmpty (MkB _ _ 0) = No (\case _ impossible)
--- nonEmpty (MkB _ _ (S _)) = Yes IsNonEmpty
+-- Sometimes you don't have a proof that something holds all the way down to
+-- True or False, but if you have a proof that `something` holds and `not
+-- something` holds, that's absurd.
+private -- ?
+soNotSonot : So x -> So (not x) -> Void -- So x -> Not (So (not x))
+soNotSonot Oh Oh impossible
+
+export -- Does this need public export or is being Dec enough for proofs?
+nonEmpty : (b : Bytes) -> Dec (NonEmpty b)
+nonEmpty (MkB _ _ len) with (choose (len > 0))
+  nonEmpty (MkB _ _ len) | (Left t) = Yes (IsNonEmpty t)
+  nonEmpty (MkB _ _ len) | (Right f) = No (\(IsNonEmpty t) => soNotSonot t f)
 
 ----------------------------------------------------------------------
 
