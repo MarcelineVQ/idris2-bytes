@@ -20,16 +20,24 @@ moduleName = "Data.Bytes.Internal"
 -- and the current 0-based offset into that memory.
 public export
 data Bytes : Type where
-     MkB : (1 b : Buffer) -> (pos : Int) -> (len : Nat) -> Bytes
+     MkB : (b : Buffer) -> (pos : Int) -> (len : Nat) -> Bytes
+
+-- Nat is technically too big here, it'd be better to have some bounded type.
+-- Perhaps it would be best to use Int and provide a NonEmpty in terms of
+-- believe_me or So (which seems a little tedious) since I really only use the
+-- Nat to prove NonEmpty. The problem is that the compiler isn't going to help
+-- us supply NonEmpty then. It'd be really awful to have to `with` anywhere I
+-- want NonEmpty to be inferred. Especially since it's just for a few
+-- operations. Adding inconvience for a convenience feature isn't choice.
 
 -- Performance: For the purposes of proving NonEmpty, if Nat is compiled to Int
 -- then this is as performant as if we didn't use Nat but we gain static size
--- computing. However if it's compiled to Integer then I'm not sure we gained
--- anything over simply having two constructors for Bytes, empty and not. The
--- default for Nat to compile to is Integer but realistically Int is safe since
--- you'll run out of memory before you fill up an Int. That's especially the
--- case once we have Word (uint) types if we compile Nat to those, which is
--- only reasonable since Nat can't be negative anyway.
+-- computing. However if it's compiled to Integer then we didn't gain anything
+-- over simply having two constructors for Bytes, empty and not. The default
+-- for Nat to compile to is Integer but realistically Int is safe since you'll
+-- run out of memory before you fill up an Int. That's especially the case once
+-- we have Word (uint) types if we compile Nat to those, which is only
+-- reasonable since Nat can't be negative anyway.
 
 
 public export
@@ -47,6 +55,9 @@ nonEmpty (MkB _ _ 0) = No (\case _ impossible)
 nonEmpty (MkB _ _ (S _)) = Yes IsNonEmpty
 
 ----------------------------------------------------------------------
+
+
+
 
 {- NB: In the bytestring lib of haskell they use unsafePerformIO
 because of how the strictness analzer and sharing works, they note:
@@ -71,6 +82,53 @@ public export
 unsafeCreateBytes : Nat -> (MutBuffer -> IO ()) -> Bytes
 unsafeCreateBytes len f = MkB (unsafePerformIO $ allocateAndFill (cast len) f) 0 len
 
+public export
+unsafeCreateNBytes : Nat -> (MutBuffer -> IO Int) -> Bytes
+unsafeCreateNBytes len f = unsafePerformIO $ do
+    (b, i) <- allocateAndFillToN (cast len) f
+    pure (MkB b 0 (intToNat i))
+
+public export
+unsafeCreateNBytes' : Nat -> (MutBuffer -> IO (Int,a)) -> (Bytes, a)
+unsafeCreateNBytes' len f = unsafePerformIO $ do
+    (b, i, a) <- allocateAndFillToN' (cast len) f
+    pure ((MkB b 0 (intToNat i)), a)
+
+unsafeCreateAndTrim : Nat -> (MutBuffer -> IO Int) -> Bytes
+unsafeCreateAndTrim len0 f = unsafePerformIO $ do
+    (b, len) <- allocateAndTrim (cast len0) f
+    pure (MkB b 0 (intToNat len))
+
+
+-- createAndTrim : Nat -> (MutBuffer -> IO Int) -> IO Bytes
+-- createAndTrim len f = unsafeCreateBytes len $ \b => ?createAndTrim_rhs
+
+-- This is internal so NonEmpty is used to keep the library maker honest.
+-- TODO: Why is NonEmpty for List available here? I have not imported
+-- Data.List!
+packUpToNBytes : Nat -> (l : List Word8) -> NonEmpty l => (Bytes, List Word8)
+packUpToNBytes len xs0 = unsafeCreateNBytes' len $ \p => go p len 0 xs0
+  where
+    go : MutBuffer -> Nat -> Int -> List Word8 -> IO (Int, List Word8)
+    go b n pos [] = pure (cast (len `monus` n), [])
+    go b 0 pos xs = pure (cast len, xs)
+    go b (S n) pos (x :: xs) = setByte b pos x *> go b n (pos+1) xs
+
+
+-- Unpacking bytestrings into lists effeciently is a tradeoff: on the one hand
+-- we would like to write a tight loop that just blats the list into memory, on
+-- the other hand we want it to be unpacked lazily so we don't end up with a
+-- massive list data structure in memory.
+--
+-- Our strategy is to combine both: we will unpack lazily in reasonable sized
+-- chunks, where each chunk is unpacked strictly.
+--
+-- unpackBytes and unpackChars do the lazy loop, while unpackAppendBytes and
+-- unpackAppendChars do the chunks strictly.
+
+-- unpackBytes : Bytes -> List Word8
+
+
 
 -- Intended complexity: O(n+m)
 -- No need to export, simply use <+>
@@ -87,9 +145,12 @@ private
 show_buffer : Buffer -> String
 show_buffer buf
     = "[" ++ fastAppend (intersperse "," (map show (unsafePerformIO (bufferData buf)))) ++ "]"
-         
 
--- Debug use ONLY, **don't ever use this**
+
+-- Debug use ONLY, **don't ever use this**, bytes are not characters!
+-- TODO: Remove this down the road, or  otherwise prevent it from escaping this
+-- package. If a person wants to Show/Read/OverloadedString Bytes they should
+-- create a principled package that does this.
 export
 Show Bytes where
   show (MkB b pos len) = "MkB " ++ show_buffer b ++ " " ++ show pos ++ " " ++ show len
@@ -140,6 +201,41 @@ export
 Semigroup Bytes where
   (<+>) = append
 
+-- Is there any way to make this a unique object? There's no real reason to
+-- have this be anything other than the null ptr. Or at the very least there's
+-- no reason to ever create more than one.
+-- TODO: Investigate this as backends develop ^
 export
 Monoid Bytes where
   neutral = unsafeCreateBytes 0 (\_ => pure ())
+
+-- Other things down the road that might need to concat, e.g.
+-- sconcat/mconcat/foldMap should use this since it avoids a ton of copying by checking the required size upfront.
+
+-- The idea here is to first compute the size of the Bytes we need to make and
+-- then fill it. This makes it significantly faster than piece-wise methods
+-- that must copy to build up.
+concat : List Bytes -> Bytes
+concat bss = goLen0 bss bss
+  where
+    mutual
+      -- Check if we're a '0', meaning if we can skip
+      goLen0 : List Bytes -> List Bytes -> Bytes
+      goLen0 bs0 [] = neutral
+      goLen0 bs0 (MkB _ _ 0 :: bs) = goLen0 bs0 bs -- skip empty
+      goLen0 bs0 (b :: bs) = goLen1 bs0 b bs
+
+      -- We have at least one, so carry on from there
+      goLen1 : List Bytes -> Bytes -> List Bytes -> Bytes
+      goLen1 bs0 b [] = b -- there was only one Bytes in the list
+      goLen1 bs0 b (MkB _ _ 0 :: bs) = goLen1 bs0 b bs -- skip empty
+      goLen1 bs0 b (MkB _ _ len :: xs) = ?dsfsfd_33
+
+      goLen  : List Bytes -> Int -> List Bytes -> Bytes
+      goLen bss0 len (x :: xs) = ?dsfsfdef_2
+      goLen bss0 len [] -- [] means we're done counting, time to copy!
+        = ?dsfsfdef_1
+
+      goCopy : Bytes -> Bytes -> IO ()
+      
+      

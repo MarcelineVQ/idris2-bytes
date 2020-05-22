@@ -15,10 +15,11 @@ modules = Test
         , Test.Generate
         -- , SmallCheck
 
-sourcedir = "test"
+-- sourcedir = ""
 
 main = Test
 
-prebuild = "idris2 --build bytes.ipkg"
+-- Once we have a package manager this is going byebye
+prebuild = "cd .. && idris2 --install bytes.ipkg"
 
 depends = base, contrib, bytes

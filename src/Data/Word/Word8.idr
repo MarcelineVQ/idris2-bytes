@@ -56,3 +56,7 @@ export
 implementation
 Cast Word8 Int where
   cast (W8 i) = i
+
+export
+Show Word8 where
+  show (W8 i) = show i

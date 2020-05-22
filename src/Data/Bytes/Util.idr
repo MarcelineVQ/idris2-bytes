@@ -21,7 +21,16 @@ intToNat i = if i >= 0 then go i else Z
 public export
 total
 errorCall : String -> String -> String -> a
-errorCall mod fn_name msg = idris_crash $ mod ++ ":" ++ fn_name ++ ":" ++ msg
+errorCall mod fn_name msg = idris_crash $ mod ++ ":" ++ fn_name ++ ": " ++ msg
+
+-- Ideally we'd have statically enforced size limits but it's a little onerous
+-- at this stage. Integer would be safer but there's a size and performance hit
+-- that would need investigating.
+checkedAdd : String -> String -> Int -> Int -> Int
+checkedAdd mod fun x y
+  = let v = x + y
+    in if v >= 0 then v else errorCall mod fun $
+         "numeric overflow: " ++ show x ++ " + " ++ show y ++ " = " ++ show v
 
 public export
 total
