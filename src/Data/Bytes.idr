@@ -120,13 +120,13 @@ snoc (MkB p0 pos len) x
 -- Intended complexity: O(1)
 export
 head : (b : Bytes) -> NonEmpty b => Word8
-head (MkB p _ _) = unsafePerformIO (getByte p 0)
+head (MkB b pos _) = unsafePerformIO (getByte b pos)
 
 export
 head' : (b : Bytes) -> Word8
-head' (MkB p s l) = if 0 >= s
+head' (MkB b pos len) = if 0 >= len
   then errorCall moduleName "head" "buffer empty"
-  else unsafePerformIO (getByte p 0)
+  else unsafePerformIO (getByte b pos)
 
 -- Intended complexity: O(1)
 export
