@@ -9,7 +9,7 @@ This bears investigating.
 
 
 
-Some thoughts on Bytes representation, I'm very inclined to just move len to Int at this point since the advantage of having a statically providied NonEmpty is unclear.  
+Some thoughts on Bytes representation:
 ```
 -- Our Bytes type, a Ptr to a `block` of memory, its size in bytes,
 -- and the current 0-based offset into that memory.
@@ -33,3 +33,4 @@ data Bytes : Type where
 -- we have Word (uint) types if we compile Nat to those, which is only
 -- reasonable since Nat can't be negative anyway.
 ```
+Decision made: NonEmpty doens't give enough of an advantage for the hassle it causes in the codebase.

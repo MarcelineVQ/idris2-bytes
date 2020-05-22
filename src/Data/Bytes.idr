@@ -63,7 +63,7 @@ singleton : Word8 -> Bytes
 singleton w = unsafeCreateBytes 1 $ \p => setByte p 0 w
 
 private
-packLenBytes : Nat -> List Word8 -> Bytes
+packLenBytes : Int -> List Word8 -> Bytes
 packLenBytes len xs0
     = unsafeCreateBytes len $ \b => go 0 b xs0
   where
@@ -74,24 +74,20 @@ packLenBytes len xs0
 -- Intended complexity: O(n)
 export
 pack : List Word8 -> Bytes
-pack xs = packLenBytes (length xs) xs
+pack xs = packLenBytes (cast (length xs)) xs
 
 -- Intended complexity: O(n)
 export
 unpack : Bytes -> List Word8
 unpack (MkB fp pos len) =
   if pos < 0 then errorCall moduleName "unpack" "position was negative"
-             else map cast . take len . drop (intToNat pos)
+             else map cast . take (intToNat len) . drop (intToNat pos)
                            . unsafePerformIO . bufferData $ fp
 
-total
 -- Intended complexity: O(1)
-length : Bytes -> Nat
-length (MkB _ _ len) = len
- 
 total
-length' : Bytes -> Int
-length' (MkB _ _ len) = cast len
+length : Bytes -> Int
+length (MkB _ _ len) = len
 
 total
 -- Intended complexity: O(1)
@@ -105,7 +101,7 @@ cons : Word8 -> Bytes -> Bytes
 cons x (MkB p0 pos len)
     = do unsafeCreateBytes (1 + len) $ \p => do
          setByte p 0 x
-         copyBuffer p0 pos (cast len) p 1
+         copyBuffer p0 pos len p 1
 
 -- Intended complexity: O(1)
 -- Provides NonEmpty
@@ -113,9 +109,8 @@ export
 snoc : Bytes -> Word8 -> Bytes
 snoc (MkB p0 pos len) x
   = unsafeCreateBytes (1 + len) $ \p => do
-      let s'= cast len
-      copyBuffer p0 pos s' p 0
-      setByte p s' x
+      copyBuffer p0 pos len p 0
+      setByte p len x
 
 -- Intended complexity: O(1)
 export
@@ -125,74 +120,82 @@ head (MkB b pos _) = unsafePerformIO (getByte b pos)
 export
 head' : (b : Bytes) -> Word8
 head' (MkB b pos len) = if 0 >= len
-  then errorCall moduleName "head" "buffer empty"
+  then errorCall moduleName "head'" "buffer empty"
   else unsafePerformIO (getByte b pos)
 
 -- Intended complexity: O(1)
 export
 tail : (b : Bytes) -> NonEmpty b => Bytes
-tail (MkB p pos (S len)) = MkB p (1 + pos) len
+tail (MkB p pos len) = MkB p (1 + pos) (len - 1)
 
 export
 tail' : Bytes -> Bytes
-tail' (MkB p _ Z) = errorCall moduleName "tail" "buffer empty"
-tail' (MkB p pos (S len)) = MkB p (1 + pos) len
+tail' (MkB p pos len) = if len > 0
+                          then MkB p (1 + pos) (len - 1)
+                          else errorCall moduleName "tail'" "buffer empty"
 
 -- Intended complexity: O(1)
 export
 uncons : (b : Bytes) -> NonEmpty b => (Word8, Bytes)
-uncons bs@(MkB _ _ _) = (head bs, tail bs)
+uncons bs = (head bs, tail bs)
 
 export
 uncons' : Bytes -> Maybe (Word8, Bytes)
-uncons'    (MkB _ _ Z) = Nothing
-uncons' bs@(MkB _ _ (S _)) = Just $ (head bs, tail bs)
+uncons' bs@(MkB _ _ len) = if len > 0
+                             then Just (head' bs, tail' bs)
+                             else Nothing
 
 export
 uncons'' : Bytes -> (Word8, Bytes)
-uncons''    (MkB _ _ Z) = errorCall moduleName "uncons''" "buffer empty"
-uncons'' bs@(MkB _ _ (S _)) = (head bs, tail bs)
+uncons'' bs@(MkB _ _ len)
+  = if len > 0
+      then (head' bs, tail' bs)
+      else errorCall moduleName "uncons''" "buffer empty"
 
 -- Intended complexity: O(1)
 export
 last : (b : Bytes) -> NonEmpty b => Word8
-last (MkB p pos len) = unsafePerformIO (getByte p (cast len + pos - 1))
+last (MkB p pos len) = unsafePerformIO (getByte p (len + pos - 1))
 
 export
 last' : Bytes -> Word8
-last' (MkB _ _ Z) = errorCall moduleName "last" "buffer empty"
-last' (MkB p pos len) = unsafePerformIO (getByte p (cast len + pos - 1))
+last' (MkB p pos len) = if len > 0
+                          then unsafePerformIO (getByte p (len + pos - 1))
+                          else errorCall moduleName "last'" "buffer empty"
 
 -- Intended complexity: O(1)
 export
 init : (b: Bytes) -> NonEmpty b => Bytes
-init (MkB p pos (S len)) = MkB p pos len
+init (MkB p pos len) = MkB p pos (len - 1)
 
 export
 init' : Bytes -> Bytes
-init' (MkB _ _ Z) = errorCall moduleName "init" "buffer empty"
-init' (MkB p pos (S len)) = MkB p pos len
+init' (MkB p pos len) = if len > 0
+                        then MkB p pos (len - 1)
+                        else errorCall moduleName "init'" "buffer empty"
 
 -- Intended complexity: O(1)
 export
 unsnoc : (b : Bytes) -> NonEmpty b => (Bytes, Word8)
-unsnoc bs@(MkB _ _ (S _)) = (init bs, last bs)
+unsnoc bs = (init bs, last bs)
 
 export
 unsnoc' : Bytes -> Maybe (Bytes, Word8)
-unsnoc' (MkB _ _ Z) = Nothing
-unsnoc' bs@(MkB _ _ (S _)) = Just $ (init bs, last bs)
+unsnoc' bs@(MkB _ _ len) = if len > 0
+                             then Just (init' bs, last' bs)
+                             else Nothing
 
 export
 unsnoc'' : Bytes -> (Bytes, Word8)
-unsnoc'' (MkB _ _ Z) = errorCall moduleName "last" "buffer empty"
-unsnoc'' bs@(MkB _ _ (S _)) = (init bs, last bs)
+unsnoc'' bs@(MkB _ _ len) = if len > 0
+                              then (init' bs, last' bs)
+                              else errorCall moduleName "unsnoc''" "buffer empty"
 
 -- Intended complexity: O(n)
 export
 foldl : (a -> Word8 -> a) -> a -> Bytes -> a
 foldl f v (MkB b pos len)
-    = unsafePerformIO $ go v pos (cast len + pos)
+    = unsafePerformIO $ go v pos (len + pos)
   where
     go : a -> (pos1 : Int) -> (pos2 : Int) -> IO a
     go z p q
@@ -203,7 +206,7 @@ foldl f v (MkB b pos len)
 export
 foldr : (Word8 -> a -> a) -> a -> Bytes -> a
 foldr f v (MkB bs pos len)
-    = unsafePerformIO $ go v (cast len + pos) pos
+    = unsafePerformIO $ go v (len + pos) pos
   where
     go : a -> (pos1 : Int) -> (pos1 : Int) -> IO a
     go z p q
@@ -214,7 +217,7 @@ foldr f v (MkB bs pos len)
 export
 map : (Word8 -> Word8) -> Bytes -> Bytes
 map f (MkB b0 pos len)
-    = unsafeCreateBytes len $ \new => map_ 0 (cast len) new
+    = unsafeCreateBytes len $ \new => map_ 0 len new
   where
     map_ : (pos1 : Int) -> (pos2 : Int) -> MutBuffer -> IO ()
     map_ p q buf = if p >= q then pure ()
@@ -227,7 +230,7 @@ map f (MkB b0 pos len)
 export
 reverse : Bytes -> Bytes
 reverse b@(MkB buf pos len) = unsafeCreateBytes len $ \new =>
-    rev_ 0 (cast len - 1) new
+    rev_ 0 (len - 1) new
   where
     rev_ : Int -> Int -> MutBuffer -> IO ()
     rev_ p q new = if 0 > q

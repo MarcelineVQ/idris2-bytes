@@ -8,9 +8,11 @@ import Data.Bytes
 ---------------------------------------------------------------------
 
 -- Because we don't have good namespace management yet this is being given a
--- different name for the type.
--- We'd probably want the same name as strict Bytes so people can swap it in
--- types easier as they iterate their software's design.
+-- different name for the type. We might want the same name as strict Bytes so
+-- people can swap it in types easier as they iterate their software's design.
+-- That being said ByteString of Haskell calling lazy and nonlazy ByteString's
+-- the same has certainly caused confusion so I'm inclined to keep LBytes.
+
 -- Lazy or Inf for this type?
 public export
 data LBytes : Type where
@@ -18,8 +20,8 @@ data LBytes : Type where
   Chunk : (b : Bytes) -> (bs : Inf LBytes) -> LBytes
 
 public export
-data LNonEmpty : LBytes -> Type where
-  IsLNonEmpty : LNonEmpty (Chunk _ _)
+data NonEmpty : LBytes -> Type where
+  IsNonEmpty : NonEmpty (Chunk _ _)
 
 
 ---------------------------------------------------------------------
