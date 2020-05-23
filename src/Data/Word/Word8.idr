@@ -28,7 +28,8 @@ fromInteger' = W8 . mod256 . cast
 
  -- might need to %tcinline this if it's going to be private
 private
-word8Over : (Int -> Int -> Int) -> Word8 -> Word8 -> Word8
+%spec f
+word8Over : (f : Int -> Int -> Int) -> Word8 -> Word8 -> Word8
 word8Over f (W8 x) (W8 y) = W8 $ mod256 (x `f` y)
 
 export
@@ -77,6 +78,6 @@ export
 Show Word8 where
   show (W8 i) = show i
 
--- Not yet, wait to see how this works.
+-- I don't think this does anything yet.
 -- %transform "t_mod0"   mod' 0   256 = 0
 -- %transform "t_mod256" mod' 256 256 = 0
