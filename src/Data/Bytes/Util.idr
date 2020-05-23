@@ -19,7 +19,7 @@ intToNat i = if i >= 0 then go i else Z
     go k = 1 + go (k-1)
 
 public export
-total
+partial -- I mean... it is total, it just calls out to a partial function
 errorCall : String -> String -> String -> a
 errorCall mod fn_name msg = idris_crash $ mod ++ ":" ++ fn_name ++ ": " ++ msg
 

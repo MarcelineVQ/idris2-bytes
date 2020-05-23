@@ -1,6 +1,10 @@
 module Data.Word.Word8
 
--- in Idris2 currently mod is really rem 
+-- Not yet, kinks to work out with totality checking
+-- %default total
+
+-- TODO: Add modulo to base to incentivise backend support.
+-- In Idris2 currently mod is really rem.
 private
 %foreign "scheme:modulo"
 mod' : Int -> Int -> Int
@@ -17,26 +21,38 @@ private
 fromInt : Int -> Word8 
 fromInt = W8 . mod256
 
+%tcinline
+private
+fromInteger' : Integer -> Word8 
+fromInteger' = W8 . mod256 . cast
+
+ -- might need to %tcinline this if it's going to be private
+private
+word8Over : (Int -> Int -> Int) -> Word8 -> Word8 -> Word8
+word8Over f (W8 x) (W8 y) = W8 $ mod256 (x `f` y)
+
 export
 implementation
 Num Word8 where
-  W8 x + W8 y = W8 $ mod256 (x + y)
-  W8 x * W8 y = W8 $ mod256 (x * y)
-  -- Careful, silently overflows.
-  fromInteger x = W8 $ mod256 (cast x)
+  (+) = word8Over (+)
+  (*) = word8Over (*)
+  -- Careful, silently overflows as a literal.
+  fromInteger x = if x >= 0 && x < 256
+                    then W8 $ cast x
+                    else Word8.fromInteger' x
 
 export
 implementation
 Integral Word8 where
-  W8 x `mod` W8 y = W8 $ mod256 (x `mod` y)
-  W8 x `div` W8 y = W8 $ mod256 (x `div` y)
+  mod = word8Over mod
+  div = word8Over div
 
 export
 implementation
 Neg Word8 where
-  negate (W8 x) = W8 $ mod256 (256 - x)
-  W8 x - W8 y   = W8 $ mod256 (x - y)
-  
+  negate = word8Over (-) 0
+  (-)    = word8Over (-)
+
 export
 implementation
 Eq Word8 where
@@ -60,3 +76,7 @@ Cast Word8 Int where
 export
 Show Word8 where
   show (W8 i) = show i
+
+-- Not yet, wait to see how this works.
+-- %transform "t_mod0"   mod' 0   256 = 0
+-- %transform "t_mod256" mod' 256 256 = 0
