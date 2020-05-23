@@ -18,11 +18,12 @@ private
 moduleName : String
 moduleName = "Data.Bytes.Internal"
 
--- Our Bytes type, a Ptr to a `block` of memory, its size in bytes,
--- and the current 0-based offset into that memory.
+-- Our Bytes type, a Ptr to a `block` of memory, the current 0-based offset
+-- into that memory, its size in bytes.
 public export
 data Bytes : Type where
      MkB : (b : Buffer) -> (pos : Int) -> (len : Int) -> Bytes
+
 
 -- It'd be nice to be able to provide NonEmpty based on `len` but it's quite a
 -- hassle to have a Nat here with the various castings around the codebase and
@@ -31,10 +32,6 @@ data Bytes : Type where
 public export
 data NonEmpty : Bytes -> Type where
   IsNonEmpty : So (len > 0) -> NonEmpty (MkB _ _ len)
-
-public export
-data NonEmpty' : Bytes -> Type where
-  IsNonEmpty' : So (len > 0) => NonEmpty' (MkB _ _ len)
 
 -- ^ how can I provide this proof without making the user need access
 -- to MkB? Simply by having my own functions imlpicity prove that when
@@ -74,7 +71,9 @@ TODO: Find out if this distinction is true in idris.
 
 export
 unsafeCreateBytes : Int -> (MutBuffer -> IO ()) -> Bytes
-unsafeCreateBytes len f = MkB (unsafePerformIO $ allocateAndFill len f) 0 len
+unsafeCreateBytes len f = unsafePerformIO $ do
+    b <- allocateAndFill len f
+    pure (MkB b 0 len)
 
 export
 unsafeCreateNBytes : Int -> (MutBuffer -> IO Int) -> Bytes
@@ -200,33 +199,28 @@ export
 Monoid Bytes where
   neutral = unsafeCreateBytes 0 (\_ => pure ())
 
+
 -- Other things down the road that might need to concat, e.g.
--- sconcat/mconcat/foldMap should use this since it avoids a ton of copying by checking the required size upfront.
-
--- The idea here is to first compute the size of the Bytes we need to make and
--- then fill it. This makes it significantly faster than piece-wise methods
--- that must copy to build up.
+-- sconcat/mconcat/foldMap should use this since it avoids a ton of copying by
+-- checking the required size upfront. The idea here is to first compute the
+-- size of the Bytes we need to make and then fill it. Despite going over the
+-- list twice this makes it significantly faster than piece-wise methods that
+-- must copy over and over to build up.
+-- TODO: test this!
+export
 concat : List Bytes -> Bytes
-concat bss = goLen0 bss bss
+concat bs = let maxlen = getLen bs
+            in  unsafeCreateBytes maxlen (go 0 (maxlen-1) bs)
   where
-    mutual
-      -- Check if we're a '0', meaning if we can skip
-      goLen0 : List Bytes -> List Bytes -> Bytes
-      goLen0 bs0 [] = neutral
-      goLen0 bs0 (MkB _ _ 0 :: bs) = goLen0 bs0 bs -- skip empty
-      goLen0 bs0 (b :: bs) = goLen1 bs0 b bs
+    getLen : List Bytes -> Int
+    getLen [] = 0             -- Check overflow of Int, which would be bad.
+    getLen (MkB _ _ len :: bs) = checkedAdd moduleName "concat" len (getLen bs)
+    
+    go : (buf_pos : Int) -> (end : Int) -> List Bytes -> MutBuffer -> IO ()
+    go n_pos end [] buf = pure ()
+    go n_pos end (MkB b pos len :: bs) buf
+      = if n_pos > end then pure ()
+                       else do copyBuffer b pos len buf n_pos
+                               go (n_pos + len) end bs buf
 
-      -- We have at least one, so carry on from there
-      goLen1 : List Bytes -> Bytes -> List Bytes -> Bytes
-      goLen1 bs0 b [] = b -- there was only one Bytes in the list
-      goLen1 bs0 b (MkB _ _ 0 :: bs) = goLen1 bs0 b bs -- skip empty
-      goLen1 bs0 b (MkB _ _ len :: xs) = ?dsfsfd_33
 
-      goLen  : List Bytes -> Int -> List Bytes -> Bytes
-      goLen bss0 len (x :: xs) = ?dsfsfdef_2
-      goLen bss0 len [] -- [] means we're done counting, time to copy!
-        = ?dsfsfdef_1
-
-      goCopy : Bytes -> Bytes -> IO ()
-      
-      

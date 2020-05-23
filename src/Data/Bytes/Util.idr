@@ -26,6 +26,7 @@ errorCall mod fn_name msg = idris_crash $ mod ++ ":" ++ fn_name ++ ": " ++ msg
 -- Ideally we'd have statically enforced size limits but it's a little onerous
 -- at this stage. Integer would be safer but there's a size and performance hit
 -- that would need investigating.
+export
 checkedAdd : String -> String -> Int -> Int -> Int
 checkedAdd mod fun x y
   = let v = x + y
