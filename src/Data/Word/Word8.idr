@@ -4,7 +4,7 @@ module Data.Word.Word8
 -- %default total
 
 -- TODO: Add modulo to base to incentivise backend support.
--- In Idris2 currently mod is really rem.
+-- In Idris2 currently mod is really rem!
 private
 %foreign "scheme:modulo"
 mod' : Int -> Int -> Int
@@ -26,9 +26,9 @@ private
 fromInteger' : Integer -> Word8 
 fromInteger' = W8 . mod256 . cast
 
- -- might need to %tcinline this if it's going to be private
+ -- might need to %tcinline this, depends how private affects things
 private
-%spec f
+%inline -- %spec or %inline? TODO: test each
 word8Over : (f : Int -> Int -> Int) -> Word8 -> Word8 -> Word8
 word8Over f (W8 x) (W8 y) = W8 $ mod256 (x `f` y)
 
@@ -40,7 +40,7 @@ Num Word8 where
   -- Careful, silently overflows as a literal.
   fromInteger x = if x >= 0 && x < 256
                     then W8 $ cast x
-                    else Word8.fromInteger' x
+                    else fromInteger' x
 
 export
 implementation
@@ -78,6 +78,3 @@ export
 Show Word8 where
   show (W8 i) = show i
 
--- I don't think this does anything yet.
--- %transform "t_mod0"   mod' 0   256 = 0
--- %transform "t_mod256" mod' 256 256 = 0
