@@ -3,10 +3,10 @@ module Data.Bytes.Util
 moduleName : String
 moduleName = "Data.Bytes.Util"
 
--- temp until we have a Word8 type
--- public export
--- Word8 : Type
--- Word8 = Int
+export
+replicateM : Applicative f => Int -> f a -> f (List a)
+replicateM n act = if 0 >= n then pure []
+                             else [| act :: replicateM (n-1) act |]
 
 -- Try not to use this, it'd be quite slow, better to use a casting prim of
 -- some kind when one exists. This still has to +1 over and over after Nat is

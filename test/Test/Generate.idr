@@ -42,23 +42,23 @@ test2 x y f = f x y
 
 infixr 0 &&
 (&&) : a -> (a -> b) -> b
-
-consTests : Tests
-consTests = MkTests
-  [ prop "cons1" $ arbitrary && \x => cons x empty == singleton x
-  ]
-
-appendTests : Tests
-appendTests = MkTests
-  [ prop "append1" $ cons 1 empty == singleton 1
-  , prop "append2" $ cons 3 empty == singleton 3
-  , prop "append3" $ cons 3 (singleton 2) == ?fdssd
-  ]
-
-test : IO ()
-test = runProps $ [("cons"  , consTests  )
-                  ,("append", appendTests)
-                  ]
+-- 
+-- consTests : Tests
+-- consTests = MkTests
+--   [ prop "cons1" $ arbitrary && \x => cons x empty == singleton x
+--   ]
+-- 
+-- appendTests : Tests
+-- appendTests = MkTests
+--   [ prop "append1" $ cons 1 empty == singleton 1
+--   , prop "append2" $ cons 3 empty == singleton 3
+--   , prop "append3" $ cons 3 (singleton 2) == ?fdssd
+--   ]
+-- 
+-- test : IO ()
+-- test = runProps $ [("cons"  , consTests  )
+--                   ,("append", appendTests)
+--                   ]
 
 
 

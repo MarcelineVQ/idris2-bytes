@@ -1,7 +1,7 @@
 package testbytes
 
 authors    = "MarcelineVQ"
-version    = "1.1.1.1"
+version    = "1.2.1.1"
 readme     = "README.md"
 
 homepage   = "https://github.com/MarcelineVQ/idris2-bytes"
@@ -13,6 +13,7 @@ brief      = "Test suit for Bytes"
 
 modules = Test
         , Test.Generate
+        , Test.LazyTest
         -- , SmallCheck
 
 -- sourcedir = ""
@@ -21,5 +22,7 @@ main = Test
 
 -- Once we have a package manager this is going byebye
 prebuild = "cd .. && idris2 --install bytes.ipkg"
+
+postbuild = "idris2 -p base -p bytes Test.idr --exec main"
 
 depends = base, contrib, bytes

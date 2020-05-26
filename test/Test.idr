@@ -3,15 +3,18 @@ module Test
 import Data.Bytes
 import Data.Word.Word8
 
+import Test.LazyTest
+
 testStrict  : IO ()
 testLazy    : IO ()
 testBuilder : IO ()
 
 main : IO ()
 main = do
-  testStrict
-  testLazy
-  testBuilder
+  -- testStrict
+  -- testLazy
+  -- testBuilder
+  printLn "Testing lazy file IO:" *> lazyIOTest
 
 
 
