@@ -42,7 +42,7 @@ test2 x y f = f x y
 
 infixr 0 &&
 (&&) : a -> (a -> b) -> b
--- 
+
 -- consTests : Tests
 -- consTests = MkTests
 --   [ prop "cons1" $ arbitrary && \x => cons x empty == singleton x

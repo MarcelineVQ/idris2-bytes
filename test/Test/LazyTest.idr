@@ -2,14 +2,13 @@ module Test.LazyTest
 
 import Data.Bytes.Lazy
 import Data.Bytes
+import Data.Bytes.Util
 
 import Data.Word.Word8
 
--- import System.Directory
-
 import System.File
 
-import Data.Bytes.Util
+-------------------------------------------------
 
 cas : Char -> Word8
 cas c = cast (cast {to=Int} c)
@@ -57,7 +56,8 @@ printo : LBytes -> IO ()
 printo lb = go 0 lb
   where
     go : Int -> LBytes -> IO ()
-    go n Empty = putStrLn "End of lazy bytes. If you didn't get an eof error\nthen we succeeded in reading only part of the file."
+    go n Empty = putStrLn $ "End of lazy bytes. If you didn't get an eof"
+      ++ "error\nthen we succeeded in reading only part of the file."
     go n (Chunk _ lbs) = do
       putStrLn $ "Chunk " ++ show n
       go (n + 1) lbs
