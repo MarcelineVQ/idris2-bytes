@@ -3,11 +3,29 @@ http://www.ilikebigbits.com/2014_04_29_myth_of_ram_3.html
 
 What does this imply for our implementation?  
 Is `getByte buffer 0` a random access or is this memory location known?
-Aren't we already in trouble when we iterate a buffer by writing `getByte buffer n` for each n?  
+Are we already in trouble when we iterate a buffer by writing `getByte buffer n` for each n?  
 As opposed to  ptr = getByte buffer 0  and iterate the ptr? And accessing the memory locations ourselves.  
 This bears investigating.
 
+---
 
+Primitives we probably want: nat-to-int cast, making mod actually modulo and having a rem for remainder
+
+Investigate the casting story between int/integer and nat in general, ideally there'd be no work to do at runtime between Nat and Integer but the way things are written now it seems like we have to convert by repeatedly +1. That's no bueno for our nice interface.
+
+---
+fixity declarations are to be located with the declarations they mention.
+mutual blocks are to be used where possible as opposed to forward declarations.
+It's not nice to make your reader scan all over a source file to find what they need to know about a definition
+```idris
+-- Comment having details about foo
+infixr 3 `foo`
+export
+%inline
+foo : Type -> blah -> a
+t `foo` b = ...
+```
+---
 
 Some thoughts on Bytes representation:
 ```
@@ -33,4 +51,4 @@ data Bytes : Type where
 -- we have Word (uint) types if we compile Nat to those, which is only
 -- reasonable since Nat can't be negative anyway.
 ```
-Decision made: NonEmpty doens't give enough of an advantage for the hassle it causes in the codebase.
+Decision made: NonEmpty in this form doens't give enough of an advantage for the hassle it causes in the codebase.

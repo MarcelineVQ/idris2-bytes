@@ -3,6 +3,10 @@ module Data.Bytes.Lazy.API
 import Data.Bytes.Lazy.Internal
 import Data.Bytes
 
+private
+moduleName : String
+moduleName = "Data.Bytes.Lazy.API"
+
 empty : LBytes
 empty = Empty
 

@@ -12,7 +12,12 @@ license    = "CC0 (refer to LICENSE file)"
 brief      = "Immutable chunks of bytes for Idris2"
 
 modules = Data.Bytes
-        , Data.Bytes.Internal
+        , Data.Bytes.Strict.Internal
+        , Data.Bytes.Strict.API
+        , Data.Bytes.Lazy
+        , Data.Bytes.Lazy.Internal
+        , Data.Bytes.Lazy.API
+        
         , Data.Bytes.Prim
         , Data.Bytes.Util
 

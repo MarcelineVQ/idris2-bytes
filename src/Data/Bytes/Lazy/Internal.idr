@@ -2,6 +2,10 @@ module Data.Bytes.Lazy.Internal
 
 import Data.Bytes
 
+private
+moduleName : String
+moduleName = "Data.Bytes.Lazy.Internal"
+
 ---------------------------------------------------------------------
 -- This module is experimental as idris2 doesn't check productivity/totality
 -- very well, if at all
