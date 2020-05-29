@@ -1,12 +1,13 @@
 module Data.Bytes.Strict.API
 
 import public Data.Bytes.Strict.Internal
+import public Data.Bytes.Prim
 
 import Data.Word.Word8
 
--- Unfortunately neccesary addition atm, no idea why. For some reason things
--- from Data.Buffer are in scope.
-%hide Data.Buffer.getByte
+import Data.Bytes.Util
+
+import Data.List -- drop
 
 moduleName : String
 moduleName = "Data.Bytes.Strict.API"
@@ -85,7 +86,7 @@ packLenBytes : Int -> List Word8 -> Bytes
 packLenBytes len xs0
     = unsafeCreateBytes len $ \b => go 0 b xs0
   where
-    go : Int -> MutBuffer -> List Word8 -> IO ()
+    go : Int -> MutBlock -> List Word8 -> IO ()
     go p buf [] = pure ()
     go p buf (x::xs) = setByte buf p x *> go (p+1) buf xs
 
@@ -99,8 +100,8 @@ export
 unpack : Bytes -> List Word8
 unpack (MkB fp pos len) =
   if pos < 0 then errorCall moduleName "unpack" "position was negative"
-             else map cast . take (intToNat len) . drop (intToNat pos)
-                           . unsafePerformIO . bufferData $ fp
+             else take (intToNat len) . drop (intToNat pos)
+                           . unsafePerformIO . blockData $ fp
 
 -------------------------------------------------
 -- Basic interface
@@ -123,14 +124,14 @@ cons : Word8 -> Bytes -> Bytes
 cons x (MkB p0 pos len)
     = do unsafeCreateBytes (1 + len) $ \p => do
          setByte p 0 x
-         copyBuffer p0 pos len p 1
+         copyBlock p0 pos len p 1
 
 -- Intended complexity: O(1)
 export
 snoc : Bytes -> Word8 -> Bytes
 snoc (MkB p0 pos len) x
   = unsafeCreateBytes (1 + len) $ \p => do
-      copyBuffer p0 pos len p 0
+      copyBlock p0 pos len p 0
       setByte p len x
 
 -- Intended complexity: O(1)
@@ -141,7 +142,7 @@ head (MkB b pos _) = unsafePerformIO (getByte b pos)
 export
 head' : (b : Bytes) -> Word8
 head' (MkB b pos len) = if 0 >= len
-  then errorCall moduleName "head'" "buffer empty"
+  then errorCall moduleName "head'" "block empty"
   else unsafePerformIO (getByte b pos)
 
 -- Intended complexity: O(1)
@@ -153,7 +154,7 @@ export
 tail' : Bytes -> Bytes
 tail' (MkB p pos len) = if len > 0
                           then MkB p (1 + pos) (len - 1)
-                          else errorCall moduleName "tail'" "buffer empty"
+                          else errorCall moduleName "tail'" "block empty"
 
 -- Intended complexity: O(1)
 export
@@ -171,7 +172,7 @@ uncons'' : Bytes -> (Word8, Bytes)
 uncons'' bs@(MkB _ _ len)
   = if len > 0
       then (head' bs, tail' bs)
-      else errorCall moduleName "uncons''" "buffer empty"
+      else errorCall moduleName "uncons''" "block empty"
 
 -- Intended complexity: O(1)
 export
@@ -182,7 +183,7 @@ export
 last' : Bytes -> Word8
 last' (MkB p pos len) = if len > 0
                           then unsafePerformIO (getByte p (len + pos - 1))
-                          else errorCall moduleName "last'" "buffer empty"
+                          else errorCall moduleName "last'" "block empty"
 
 -- Intended complexity: O(1)
 export
@@ -193,7 +194,7 @@ export
 init' : Bytes -> Bytes
 init' (MkB p pos len) = if len > 0
                         then MkB p pos (len - 1)
-                        else errorCall moduleName "init'" "buffer empty"
+                        else errorCall moduleName "init'" "block empty"
 
 -- Intended complexity: O(1)
 export
@@ -210,7 +211,7 @@ export
 unsnoc'' : Bytes -> (Bytes, Word8)
 unsnoc'' bs@(MkB _ _ len) = if len > 0
                               then (init' bs, last' bs)
-                              else errorCall moduleName "unsnoc''" "buffer empty"
+                              else errorCall moduleName "unsnoc''" "block empty"
 
 -------------------------------------------------
 -- Transforms
@@ -222,7 +223,7 @@ reverse : Bytes -> Bytes
 reverse b@(MkB buf pos len) = unsafeCreateBytes len $ \new =>
     rev_ 0 (len - 1) new
   where
-    rev_ : Int -> Int -> MutBuffer -> IO ()
+    rev_ : Int -> Int -> MutBlock -> IO ()
     rev_ p q new = if 0 > q
       then pure ()
       else do
@@ -297,7 +298,7 @@ map : (Word8 -> Word8) -> Bytes -> Bytes
 map f (MkB b0 pos len)
     = unsafeCreateBytes len $ \new => map_ 0 len new
   where
-    map_ : (pos1 : Int) -> (pos2 : Int) -> MutBuffer -> IO ()
+    map_ : (pos1 : Int) -> (pos2 : Int) -> MutBlock -> IO ()
     map_ p q buf = if p >= q then pure ()
                              else do
                                x <- getByte b0 (pos + p)

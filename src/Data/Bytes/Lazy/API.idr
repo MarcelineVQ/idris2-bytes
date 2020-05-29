@@ -1,7 +1,9 @@
 module Data.Bytes.Lazy.API
 
 import Data.Bytes.Lazy.Internal
-import Data.Bytes
+import Data.Bytes -- We want Internal and API for now
+
+import Data.Word.Word8
 
 private
 moduleName : String

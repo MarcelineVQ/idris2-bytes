@@ -3,7 +3,12 @@ module Data.Bytes.Strict.Internal
 import Data.Bytes.Util
 import Data.Bytes.Prim
 
+-- import Data.Buffer -- as Buf -- as has issues still
+
 import Data.Word.Word8
+
+import Data.Strings -- fastAppend
+import Data.List -- intersperse
 
 import Data.So
 
@@ -12,7 +17,11 @@ import Data.So
 -- For instance I shouldn't be able to define Bytes here as it uses Buffer
 -- from Data.Bytes which is not re-exported from Data.Bytes.Prim
 -- Supposedly this is also occuring in contrib:Data/List/TailRec.idr
-%hide Data.Buffer.getByte
+
+-- import Data.Buffer as Buf has some issues still so we'll just hide for now.
+-- %hide Data.Buffer.getByte
+-- %hide Data.Buffer.setByte
+
 
 private
 moduleName : String
@@ -22,7 +31,7 @@ moduleName = "Data.Bytes.Strict.Internal"
 -- into that memory, its size in bytes.
 public export
 data Bytes : Type where
-     MkB : (b : Buffer) -> (pos : Int) -> (len : Int) -> Bytes
+     MkB : (b : Block) -> (pos : Int) -> (len : Int) -> Bytes
 
 
 -- It'd be nice to be able to provide NonEmpty based on `len` but it's quite a
@@ -44,10 +53,10 @@ soNotSonot' : So x -> So (not x) -> Void -- So x -> Not (So (not x))
 soNotSonot' Oh Oh impossible
 
 export -- Does this need public export or is being Dec enough for proofs?
-nonEmpty : (b : Bytes) -> Dec (NonEmpty b)
-nonEmpty (MkB _ _ len) with (choose (len > 0))
-  nonEmpty (MkB _ _ len) | (Left t) = Yes (IsNonEmpty t)
-  nonEmpty (MkB _ _ len) | (Right f) = No (\(IsNonEmpty t) => soNotSonot' t f)
+isNonEmpty : (b : Bytes) -> Dec (NonEmpty b)
+isNonEmpty (MkB _ _ len) with (choose (len > 0))
+  isNonEmpty (MkB _ _ len) | (Left t) = Yes (IsNonEmpty t)
+  isNonEmpty (MkB _ _ len) | (Right f) = No (\(IsNonEmpty t) => soNotSonot' t f)
 
 ----------------------------------------------------------------------
 
@@ -72,25 +81,25 @@ TODO: Find out if this distinction is true in idris.
 -}
 
 export
-unsafeCreateBytes : Int -> (MutBuffer -> IO ()) -> Bytes
+unsafeCreateBytes : Int -> (MutBlock -> IO ()) -> Bytes
 unsafeCreateBytes len f = unsafePerformIO $ do
     b <- allocateAndFill len f
     pure (MkB b 0 len)
 
 export
-unsafeCreateNBytes : Int -> (MutBuffer -> IO Int) -> Bytes
+unsafeCreateNBytes : Int -> (MutBlock -> IO Int) -> Bytes
 unsafeCreateNBytes len f = unsafePerformIO $ do
     (b, i) <- allocateAndFillToN len f
     pure (MkB b 0 i)
 
 export
-unsafeCreateNBytes' : Int -> (MutBuffer -> IO (Int,a)) -> (Bytes, a)
+unsafeCreateNBytes' : Int -> (MutBlock -> IO (Int,a)) -> (Bytes, a)
 unsafeCreateNBytes' len f = unsafePerformIO $ do
     (b, i, a) <- allocateAndFillToN' len f
     pure ((MkB b 0 i), a)
 
 export
-unsafeCreateAndTrim : Int -> (MutBuffer -> IO Int) -> Bytes
+unsafeCreateAndTrim : Int -> (MutBlock -> IO Int) -> Bytes
 unsafeCreateAndTrim len0 f = unsafePerformIO $ do
     (b, len) <- allocateAndTrim len0 f
     pure (MkB b 0 len)
@@ -103,7 +112,7 @@ export
 packUpToNBytes : Int -> (l : List Word8) -> (Bytes, List Word8)
 packUpToNBytes len xs0 = unsafeCreateNBytes' len $ \p => go p len 0 xs0
   where
-    go : MutBuffer -> Int -> Int -> List Word8 -> IO (Int, List Word8)
+    go : MutBlock -> Int -> Int -> List Word8 -> IO (Int, List Word8)
     go b n pos [] = pure (len - n, [])
     go b 0 pos xs = pure (len, xs)
     go b n pos (x :: xs) = setByte b pos x *> go b (n-1) (pos+1) xs
@@ -130,23 +139,23 @@ private
 append : Bytes -> Bytes -> Bytes
 append (MkB xs xpos xlen) (MkB ys ypos ylen)
   = unsafeCreateBytes (xlen + ylen) $ \p => do
-      copyBuffer xs xpos xlen p 0
-      copyBuffer ys ypos ylen p xlen
+      copyBlock xs xpos xlen p 0
+      copyBlock ys ypos ylen p xlen
 
 private
-show_buffer : Buffer -> String
-show_buffer buf
-    = "[" ++ fastAppend (intersperse "," (map show (unsafePerformIO (bufferData buf)))) ++ "]"
+show_block : Block -> String
+show_block buf
+    = "[" ++ fastAppend (intersperse "," (map show (unsafePerformIO (blockData buf)))) ++ "]"
 
 
 -- Debug use ONLY, **don't ever use this**, bytes are not characters!
--- Further, this shows the whole buffer, not just the slice.
+-- Further, this shows the whole block, not just the slice.
 -- TODO: Remove this down the road, or  otherwise prevent it from escaping this
 -- package. If a person wants to Show/Read/OverloadedString Bytes they should
 -- create a principled package that does this.
 export
 Show Bytes where
-  show (MkB b pos len) = "MkB " ++ show_buffer b ++ " " ++ show pos ++ " " ++ show len
+  show (MkB b pos len) = "MkB " ++ show_block b ++ " " ++ show pos ++ " " ++ show len
 
 private
 compareBytes : Bytes -> Bytes -> Ordering
@@ -154,8 +163,8 @@ compareBytes (MkB _   _    0)    (MkB _   _    0)    = EQ
 compareBytes (MkB xb xpos xlen) (MkB yb ypos ylen) =
     unsafePerformIO $ go (xpos+xlen-1) (ypos+ylen-1) xb yb
   where
-    go : Int -> Int -> Buffer -> Buffer -> IO Ordering
-    go 0 0 xb yb = [| getByte xb xpos `compare` getByte yb ypos |]
+    go : Int -> Int -> Block -> Block -> IO Ordering
+    go 0 0 xb yb = do [| getByte xb xpos `compare` getByte yb ypos |]
     go 0 _ _ _   = pure LT
     go _ 0 _ _   = pure GT
     go k j xb yb
@@ -177,7 +186,7 @@ infixl 9 `basicEq`
 private
 basicEq : Bytes -> Bytes -> Bool
 MkB xb xpos xlen `basicEq` MkB yb ypos ylen
-    = xlen == ylen && (unsafePerformIO (exactEqBuff xb yb) && xpos == ypos)
+    = xlen == ylen && (unsafePerformIO (exactEqBlock xb yb) && xpos == ypos)
 
 export
 implementation
@@ -220,11 +229,11 @@ concat bs = let maxlen = getLen bs
     getLen [] = 0             -- Check overflow of Int, which would be bad.
     getLen (MkB _ _ len :: bs) = checkedAdd moduleName "concat" len (getLen bs)
     
-    go : (buf_pos : Int) -> (end : Int) -> List Bytes -> MutBuffer -> IO ()
+    go : (buf_pos : Int) -> (end : Int) -> List Bytes -> MutBlock -> IO ()
     go n_pos end [] buf = pure ()
     go n_pos end (MkB b pos len :: bs) buf
       = if n_pos > end then pure ()
-                       else do copyBuffer b pos len buf n_pos
+                       else do copyBlock b pos len buf n_pos
                                go (n_pos + len) end bs buf
 
 
