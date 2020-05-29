@@ -3,24 +3,11 @@ module Data.Bytes.Strict.Internal
 import Data.Bytes.Util
 import Data.Bytes.Prim
 
--- import Data.Buffer -- as Buf -- as has issues still
-
 import Data.Word.Word8
 
 import Data.Strings -- fastAppend
 import Data.List -- intersperse
-
-import Data.So
-
--- Unfortunately neccesary addition atm, no idea why. For some reason things
--- from Data.Buffer are in scope.
--- For instance I shouldn't be able to define Bytes here as it uses Buffer
--- from Data.Bytes which is not re-exported from Data.Bytes.Prim
--- Supposedly this is also occuring in contrib:Data/List/TailRec.idr
-
--- import Data.Buffer as Buf has some issues still so we'll just hide for now.
--- %hide Data.Buffer.getByte
--- %hide Data.Buffer.setByte
+import Data.So -- for our NonEmpty
 
 
 private
@@ -149,10 +136,10 @@ show_block buf
 
 
 -- Debug use ONLY, **don't ever use this**, bytes are not characters!
--- Further, this shows the whole block, not just the slice.
+-- Further, this shows the whole block, not just the live part.
 -- TODO: Remove this down the road, or  otherwise prevent it from escaping this
 -- package. If a person wants to Show/Read/OverloadedString Bytes they should
--- create a principled package that does this.
+-- create a principled package that does this. Bytes are not Strings.
 export
 Show Bytes where
   show (MkB b pos len) = "MkB " ++ show_block b ++ " " ++ show pos ++ " " ++ show len
@@ -161,23 +148,23 @@ private
 compareBytes : Bytes -> Bytes -> Ordering
 compareBytes (MkB _   _    0)    (MkB _   _    0)    = EQ
 compareBytes (MkB xb xpos xlen) (MkB yb ypos ylen) =
-    unsafePerformIO $ go (xpos+xlen-1) (ypos+ylen-1) xb yb
+    unsafePerformIO $ go (xlen-1) (ylen-1) xb yb
   where
     go : Int -> Int -> Block -> Block -> IO Ordering
-    go 0 0 xb yb = do [| getByte xb xpos `compare` getByte yb ypos |]
+    go 0 0 xb yb = [| getByte xb xpos `compare` getByte yb ypos |]
     go 0 _ _ _   = pure LT
     go _ 0 _ _   = pure GT
     go k j xb yb
-      = do EQ <- [| getByte xb k `compare` getByte yb j |]
+      = do EQ <- [| getByte xb (xpos + k) `compare` getByte yb (ypos + j) |]
              | res => pure res
            go (k-1) (j-1) xb yb
 
 
--- Offset will tend to be 0 so we first compare length, then buffer object
--- equality, then offset. The buffer should be a simple ptr comparison so it's
+-- Offset will tend to be 0 so we first compare length, then block object
+-- equality, then offset. The block should be a simple ptr comparison so it's
 -- worth doing before trying for a full compareBytes. This order is partly
 -- because it makes sense and partly because ByteString does it this way.
--- However I'm not sure why length is checked before buffer object equality,
+-- However I'm not sure why length is checked before block object equality,
 -- perhaps in ghc length has a cheaper comparison than than the extra
 -- foreignPtr prodding that ptr equality needs.
 

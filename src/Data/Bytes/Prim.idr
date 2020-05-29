@@ -25,7 +25,7 @@ prim_exactEqBuff : Buffer -> Buffer -> PrimIO Bool
 -- TODO: Check if I can use AnyPtr equality here.
 
 
--- Compare if two Buffers are the same object, in the sense of ptr equality.
+-- Compare if two Blocks are the same object, in the sense of ptr equality.
 export
 exactEqBlock : Block -> Block -> IO Bool
 exactEqBlock x y = primIO $ prim_exactEqBuff x y
@@ -50,7 +50,7 @@ getMByte (MkMB mb) loc = cast <$> Data.Buffer.getByte mb loc
 
 
 -- Bytes are immutable blocks of memory. Here we create enforcement that the
--- only place we're allowed to mutate a buffer is somewhere we're creating a
+-- only place we're allowed to mutate a block is somewhere we're creating a
 -- new one.
 
 
@@ -81,7 +81,7 @@ allocateBlock len
 
 ---------------------------------------------------------------------
 -- Block Allocation
--- These are here to avoid needing Data.Buffer elsewhere.
+-- These are here to avoid needing to import Data.Buffer elsewhere.
 ---------------------------------------------------------------------
 
 -- NB: The `f`'s below are the only place in Bytes that we can work with a
