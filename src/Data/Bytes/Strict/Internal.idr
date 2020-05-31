@@ -18,8 +18,7 @@ moduleName = "Data.Bytes.Strict.Internal"
 -- into that memory, its size in bytes.
 public export
 data Bytes : Type where
-     MkB : (b : Block) -> (pos : Int) -> (len : Int) -> Bytes
-
+  MkB : (b : Block) -> (pos : Int) -> (len : Int) -> Bytes
 
 -- It'd be nice to be able to provide NonEmpty based on `len` but it's quite a
 -- hassle to have a Nat here with the various castings around the codebase and
