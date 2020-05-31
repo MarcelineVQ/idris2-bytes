@@ -2,7 +2,7 @@ module Data.Bytes.Prim
 
 import Data.Bytes.Util
 
-import Data.Buffer -- Why is this visible in Data.Bytes + Data.Bytes.Internal?
+import Data.Buffer
 
 import Data.Word.Word8
 
@@ -10,9 +10,10 @@ moduleName : String
 moduleName = "Data.Bytes.Prim"
 
 ---------------------------------------------------------------------
--- Operations for blocks of memory
+-- Operations on blocks of memory
 ---------------------------------------------------------------------
 
+-- Should probably be a newtype
 export
 Block : Type
 Block = Buffer
@@ -31,29 +32,23 @@ exactEqBlock : Block -> Block -> IO Bool
 exactEqBlock x y = primIO $ prim_exactEqBuff x y
 
 export
-data MutBlock = MkMB Block
-
-export
 getByte : Block -> (loc : Int) -> IO Word8
 getByte b loc = cast <$> Data.Buffer.getByte b loc
 
--- Overloading isn't quite up to snuff for this to share the name of getByte,
--- even with namespaces. Still we might desire to read from a MutBlock so this
--- is provided.
 export
-getMByte : MutBlock -> (loc : Int) -> IO Word8
-getMByte (MkMB mb) loc = cast <$> Data.Buffer.getByte mb loc
+blockData : Block -> IO (List Word8)
+blockData b = map cast <$> bufferData b
 
 ---------------------------------------------------------------------
--- Allocation
+-- Mutation
 ---------------------------------------------------------------------
 
+-- Bytes are immutable `Block`s of memory. Here, combined with the allocation
+-- functions in the next section, we enforce that the only place we're allowed
+-- to mutate a Block is during its creation.
 
--- Bytes are immutable blocks of memory. Here we create enforcement that the
--- only place we're allowed to mutate a block is somewhere we're creating a
--- new one.
-
-
+export
+data MutBlock = MkMB Block
 
 export
 setByte : MutBlock -> Int -> Word8 -> IO ()
@@ -61,34 +56,34 @@ setByte (MkMB mb) pos v = Data.Buffer.setByte mb pos (cast v)
 
 export
 copyBlock : (src : Block) -> (start, len : Int) ->
-             (dest : MutBlock) -> (loc : Int) -> IO ()
+            (dest : MutBlock) -> (loc : Int) -> IO ()
 copyBlock src start len (MkMB dest) loc
   = Data.Buffer.copyData src start len dest loc
 
+-- Overloading isn't quite up to snuff for this to share the name of getByte,
+-- even with namespaces. Still, we might desire to read from a MutBlock so this
+-- is provided.
 export
-blockData : Block -> IO (List Word8)
-blockData b = map cast <$> bufferData b
+getMByte : MutBlock -> (loc : Int) -> IO Word8
+getMByte (MkMB mb) loc = cast <$> Data.Buffer.getByte mb loc
 
+---------------------------------------------------------------------
+-- Block Allocation
+---------------------------------------------------------------------
 
 -- Kind of a weird one, Data.Buffer.newBuffer can't actually return a Nothing
 -- currently. 18/5/2020
 private
-allocateBlock : Int -> IO Buffer
+allocateBlock : Int -> IO Block
 allocateBlock len
   = do Just block <- newBuffer len
          | Nothing => errorCall moduleName "allocateBlock" "allocation failed"
        pure block
 
----------------------------------------------------------------------
--- Block Allocation
--- These are here to avoid needing to import Data.Buffer elsewhere.
----------------------------------------------------------------------
-
 -- NB: The `f`'s below are the only place in Bytes that we can work with a
 -- `MutBlock`. The only ways to set bytes that we provide work on
 -- `MutBlock`s. This means that only here, where a new Block is being made,
 -- can we mutate and ensures the immutability of Bytes.
-
 
 -- Allocate and then use a function to populate the block.
 export
@@ -125,7 +120,8 @@ allocateAndFillToN' len f = do
   (i,a) <- f (MkMB b)
   pure (b,i,a)
 
--- Allocate and then use a function to populate the block, trim the resulting Block based on the length we actually filled.
+-- Allocate and then use a function to populate the block, trim the resulting
+-- Block based on the length we actually filled, and return that length.
 export
 allocateAndTrim : Int -> (MutBlock -> IO Int) -> IO (Block, Int)
 allocateAndTrim len f = do
@@ -133,10 +129,12 @@ allocateAndTrim len f = do
     yb <- allocateAndFill len' $ \zb => copyBlock xb 0 len' zb 0
     pure (yb,len')
 
--- Allocate and then use a function to populate the block, trim the resulting Block based on the slice we actually filled.
+-- Allocate and then use a function to populate the block, trim the resulting
+-- Block based on the slice we actually filled and return that slice and some
+-- extra value.
 export
-allocateAndTrim' : Int -> (MutBlock -> IO (Int,Int,a)) -> IO (Block, Int, a)
+allocateAndTrim' : Int -> (MutBlock -> IO (Int,Int,a)) -> IO (Block, (Int,Int), a)
 allocateAndTrim' len0 f = do
     (xb, (pos, len, a)) <- allocateAndFill' len0 f
     yb <- allocateAndFill len $ \zb => copyBlock xb pos len zb 0
-    pure (yb, len, a)
+    pure (yb, (pos,len), a)

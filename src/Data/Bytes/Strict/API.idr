@@ -2,12 +2,11 @@ module Data.Bytes.Strict.API
 
 import public Data.Bytes.Strict.Internal
 import public Data.Bytes.Prim
+import        Data.Bytes.Util
 
 import Data.Word.Word8
 
-import Data.Bytes.Util
-
-import Data.List -- drop
+import Data.List -- List.drop
 
 moduleName : String
 moduleName = "Data.Bytes.Strict.API"

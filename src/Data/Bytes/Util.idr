@@ -19,7 +19,7 @@ intToNat i = if i >= 0 then go i else Z
     go 0 = Z
     go k = 1 + go (k-1)
 
-public export
+export
 partial
 errorCall : String -> String -> String -> a
 errorCall mod fn_name msg = idris_crash $ mod ++ ":" ++ fn_name ++ ": " ++ msg
@@ -37,7 +37,7 @@ checkedAdd mod fun x y
          "numeric overflow: " ++ show x ++ " + " ++ show y ++ " = " ++ show v
 
 public export
-total
+total -- minus where negative results are just 0
 monus : Nat -> Nat -> Nat
 monus n 0 = n
 monus 0 n = 0

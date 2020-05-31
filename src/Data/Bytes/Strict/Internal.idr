@@ -6,8 +6,8 @@ import Data.Bytes.Prim
 import Data.Word.Word8
 
 import Data.Strings -- fastAppend
-import Data.List -- intersperse
-import Data.So -- for our NonEmpty
+import Data.List    -- intersperse
+import Data.So      -- for our NonEmpty
 
 
 private
@@ -129,12 +129,6 @@ append (MkB xs xpos xlen) (MkB ys ypos ylen)
       copyBlock xs xpos xlen p 0
       copyBlock ys ypos ylen p xlen
 
-private
-show_block : Block -> String
-show_block buf
-    = "[" ++ fastAppend (intersperse "," (map show (unsafePerformIO (blockData buf)))) ++ "]"
-
-
 -- Debug use ONLY, **don't ever use this**, bytes are not characters!
 -- Further, this shows the whole block, not just the live part.
 -- TODO: Remove this down the road, or  otherwise prevent it from escaping this
@@ -143,10 +137,15 @@ show_block buf
 export
 Show Bytes where
   show (MkB b pos len) = "MkB " ++ show_block b ++ " " ++ show pos ++ " " ++ show len
+    where
+      show_block : Block -> String
+      show_block buf
+        = "[" ++ fastAppend (intersperse ","
+            (map show . unsafePerformIO $ blockData buf)) ++ "]"
 
 private
 compareBytes : Bytes -> Bytes -> Ordering
-compareBytes (MkB _   _    0)    (MkB _   _    0)    = EQ
+compareBytes (MkB _  _    0   ) (MkB _  _    0   ) = EQ
 compareBytes (MkB xb xpos xlen) (MkB yb ypos ylen) =
     unsafePerformIO $ go (xlen-1) (ylen-1) xb yb
   where
@@ -180,7 +179,7 @@ implementation
 Eq Bytes where
   x == y = x `basicEq` y || compareBytes x y == EQ
 
--- basicEq is much speedier than comparison, use it when possible!
+-- basicEq is much speedier than compareBytes, use it when possible!
 export
 Ord Bytes where
   compare = compareBytes
