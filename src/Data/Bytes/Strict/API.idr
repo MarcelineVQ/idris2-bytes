@@ -98,9 +98,8 @@ pack xs = packLenBytes (cast (length xs)) xs
 export
 unpack : Bytes -> List Word8
 unpack (MkB fp pos len) =
-  if pos < 0 then errorCall moduleName "unpack" "position was negative"
-             else take (intToNat len) . drop (intToNat pos)
-                           . unsafePerformIO . blockData $ fp
+  take (intToNat len) . drop (intToNat pos)
+                      . unsafePerformIO . blockData $ fp
 
 -------------------------------------------------
 -- Basic interface
@@ -139,6 +138,7 @@ head : (b : Bytes) -> NonEmpty b => Word8
 head (MkB b pos _) = unsafePerformIO (getByte b pos)
 
 export
+partial
 head' : (b : Bytes) -> Word8
 head' (MkB b pos len) = if 0 >= len
   then errorCall moduleName "head'" "block empty"
@@ -150,6 +150,7 @@ tail : (b : Bytes) -> NonEmpty b => Bytes
 tail (MkB p pos len) = MkB p (1 + pos) (len - 1)
 
 export
+partial
 tail' : Bytes -> Bytes
 tail' (MkB p pos len) = if len > 0
                           then MkB p (1 + pos) (len - 1)
@@ -163,10 +164,12 @@ uncons bs = (head bs, tail bs)
 export
 uncons' : Bytes -> Maybe (Word8, Bytes)
 uncons' bs@(MkB _ _ len) = if len > 0
-                             then Just (head' bs, tail' bs)
+                             then Just ( assert_total $ head' bs
+                                       , assert_total $ tail' bs)
                              else Nothing
 
 export
+partial
 uncons'' : Bytes -> (Word8, Bytes)
 uncons'' bs@(MkB _ _ len)
   = if len > 0
@@ -179,6 +182,7 @@ last : (b : Bytes) -> NonEmpty b => Word8
 last (MkB p pos len) = unsafePerformIO (getByte p (len + pos - 1))
 
 export
+partial
 last' : Bytes -> Word8
 last' (MkB p pos len) = if len > 0
                           then unsafePerformIO (getByte p (len + pos - 1))
@@ -190,6 +194,7 @@ init : (b: Bytes) -> NonEmpty b => Bytes
 init (MkB p pos len) = MkB p pos (len - 1)
 
 export
+partial
 init' : Bytes -> Bytes
 init' (MkB p pos len) = if len > 0
                         then MkB p pos (len - 1)
@@ -203,10 +208,12 @@ unsnoc bs = (init bs, last bs)
 export
 unsnoc' : Bytes -> Maybe (Bytes, Word8)
 unsnoc' bs@(MkB _ _ len) = if len > 0
-                             then Just (init' bs, last' bs)
+                             then Just ( assert_total $ init' bs
+                                       , assert_total $ last' bs)
                              else Nothing
 
 export
+partial
 unsnoc'' : Bytes -> (Bytes, Word8)
 unsnoc'' bs@(MkB _ _ len) = if len > 0
                               then (init' bs, last' bs)
@@ -259,7 +266,7 @@ foldl f v (MkB b pos len)
 foldl1 : (Word8 -> Word8 -> Word8) -> (b : Bytes) -> NonEmpty b => Word8
 foldl1 f b = foldl f (head b) (tail b)
 
-
+partial
 foldl1' : (Word8 -> Word8 -> Word8) -> (b : Bytes) -> Word8
 foldl1' f b = foldl f (head' b) (tail'
  b)
@@ -280,6 +287,7 @@ foldr f v (MkB bs pos len)
 foldr1 : (Word8 -> Word8 -> Word8) -> (b : Bytes) -> NonEmpty b => Word8
 foldr1 f b = foldr f (last b) (init b)
 
+partial
 foldr1' : (Word8 -> Word8 -> Word8) -> Bytes -> Word8
 foldr1' f b = foldr f (last' b) (init' b)
 

@@ -9,6 +9,10 @@ This bears investigating.
 
 ---
 
+Should errorCall be marked total or covering or remain firmly partial?
+
+---
+
 Primitives we probably want: nat-to-int cast, making mod actually modulo and having a rem for remainder
 
 Investigate the casting story between int/integer and nat in general, ideally there'd be no work to do at runtime between Nat and Integer but the way things are written now it seems like we have to convert by repeatedly +1. That's no bueno for our nice interface.
