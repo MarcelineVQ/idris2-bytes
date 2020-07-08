@@ -6,6 +6,7 @@ testStrict  : IO ()
 testLazy    : IO ()
 testBuilder : IO ()
 
+partial
 main : IO ()
 main = do
   -- testStrict

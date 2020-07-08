@@ -16,6 +16,7 @@ cas c = cast (cast {to=Int} c)
 -- read some number of file chacters, crash with msg on problem or eof, this is
 -- to check if we're reading lazily.
 -- If we eof crash then we read the whole file at once.
+partial
 readN : File -> Int -> IO (List Word8)
 readN f n = if 0 >= n then pure []
                       else
@@ -31,17 +32,20 @@ take Z lb = Empty
 take (S k) Empty = Empty
 take (S k) (Chunk b bs) = Chunk b (take k bs)
 
+partial
 fileTest : IO LBytes
 fileTest = do Right f <- openFile "foo.txt" Read
                 | Left err => idris_crash (show err)
               r <- make f []
               pure $ buildup f r
   where
+    partial
     make : File -> List Word8 -> IO (Bytes, List Word8)
     make f rem
       = do rs@(_::_) <- readN f 32
              | [] => pure (empty,[])
            pure (packUpToNBytes 32 (rem ++ rs))
+    partial
     buildup : File -> (Bytes, List Word8) -> LBytes
     buildup f (b,rem)
       = if null b then Empty
@@ -63,6 +67,7 @@ printo lb = go 0 lb
       go (n + 1) lbs
 
 export
+partial
 lazyIOTest : IO ()
 lazyIOTest = do f <- fileTest
                 putStrLn "Lazy Bytes test:"

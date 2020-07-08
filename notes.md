@@ -9,7 +9,20 @@ This bears investigating.
 
 ---
 
-Should errorCall be marked total or covering or remain firmly partial?
+Covering is the default for idris2 now so I need to determine what the best
+route forward is for this lib. We call crash sometimes and it's partial, and
+partial is infectious. Is it correct to be partial anywhere an allocation can
+occur? A crash is a crash so if there was a primitive to lie about the totallity
+of a definition would it be morally correct to do so in the case of calling
+crash? We're already crashing either way. I don't actually think it would be
+correct but it sure would be more convenient. There's many things that are
+currently partial that are only partial because memory might fail to allocate
+and I want a better error message for when that happens. This is not a nice
+trade. One may ask "if a thing can fail is it not partial?" but consider the
+total expression x :: xs, if we fail to allocate space when applying :: does
+that mean it was partial? The current decision is to lie about totality in the
+crash we're using for allocation, because :: would also crash if allocation
+failed and it isn't partial.
 
 ---
 

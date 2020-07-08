@@ -205,13 +205,20 @@ Monoid Bytes where
 -- list twice this makes it significantly faster than piece-wise methods that
 -- must copy over and over to build up.
 -- TODO: test this!
+-- TODO: This could be even faster with a foldl style library that traverses the
+-- list only once
+-- NB: Unlike for allocation the crash here is for bad behavior (overflow) so it
+-- would not be correct to lie about its totality. To that end we should want to
+-- create a different total concat later to reduce partiality infection.
 export
+partial
 concat : List Bytes -> Bytes
 concat bs = let maxlen = getLen bs
             in  unsafeCreateBytes maxlen (go 0 (maxlen-1) bs)
   where
+    partial
     getLen : List Bytes -> Int
-    getLen [] = 0             -- Check overflow of Int, which would be bad.
+    getLen [] = 0                -- Check overflow of Int, which would be bad.
     getLen (MkB _ _ len :: bs) = checkedAdd moduleName "concat" len (getLen bs)
     
     go : (buf_pos : Int) -> (end : Int) -> List Bytes -> MutBlock -> IO ()

@@ -19,6 +19,35 @@ intToNat i = if i >= 0 then go i else Z
     go 0 = Z
     go k = 1 + go (k-1)
 
+-------------------------------------------------
+-- Lies
+-------------------------------------------------
+
+-- Why lie about totality?
+
+-- One may ask "If a thing can fail is it not partial?" but consider the total
+-- expression x :: xs, if we fail to allocate space when applying :: does that
+-- mean :: was partial all along? That's simply a failure of the system we're
+-- running on not a failure of totality. The single intended use of this lie is
+-- during allocation of bytes in memory. This is why we're lying here: There's
+-- no reason to infect a whole codebase with partiality when it's outside
+-- allocation that is failing.
+
+-- TODO: bring this up with other devs for idris about it's merits and negatives
+-- The less backdoors the better imo but this seems like a innocuous thing.
+private
+total
+%foreign "scheme:lambda (x) (blodwen-error-quit x)"
+lie_idris_crash : String -> a
+
+export
+total
+lieErrorCall : String -> String -> String -> a
+lieErrorCall mod fn_name msg = lie_idris_crash $ mod ++ ":" ++ fn_name ++ ": " ++ msg
+
+-------------------------------------------------
+
+
 export
 partial
 errorCall : String -> String -> String -> a
@@ -30,6 +59,7 @@ errorCall mod fn_name msg = idris_crash $ mod ++ ":" ++ fn_name ++ ": " ++ msg
 -- would need investigating, tied with the fact that our Bytes can only be Int
 -- large in the first place so that just moves the check not elimates it.
 export
+partial
 checkedAdd : String -> String -> Int -> Int -> Int
 checkedAdd mod fun x y
   = let v = x + y

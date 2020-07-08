@@ -77,7 +77,7 @@ private
 allocateBlock : Int -> IO Block
 allocateBlock len
   = do Just block <- newBuffer len
-         | Nothing => errorCall moduleName "allocateBlock" "allocation failed"
+         | Nothing => lieErrorCall moduleName "allocateBlock" "allocation failed"
        pure block
 
 -- NB: The `f`'s below are the only place in Bytes that we can work with a
