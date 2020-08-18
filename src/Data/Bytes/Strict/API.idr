@@ -11,6 +11,10 @@ import Data.List -- List.drop
 moduleName : String
 moduleName = "Data.Bytes.Strict.API"
 
+%hide Prelude.empty
+
+%default total
+
 ---------------------------------------------------------------------
 -- Documentation
 ---------------------------------------------------------------------
@@ -235,7 +239,7 @@ reverse b@(MkB buf pos len) = unsafeCreateBytes len $ \new =>
       else do
         x <- getByte buf (pos + p)
         setByte new q x
-        rev_ (p+1) (q-1) new
+        assert_total $ rev_ (p+1) (q-1) new
 
 sort : Bytes -> Bytes
 
@@ -245,6 +249,19 @@ intercalate : Bytes -> List Bytes -> Bytes
 
 
 transpose : List Bytes -> List Bytes
+
+export
+stringToBytes : String -> Int -> (Bytes,Int)
+stringToBytes str len = unsafeCreateNBytes' len $ \b => do
+    (_,r) <- fef b (unpack str) 0
+    pure (r,r)
+  where
+    fef : MutBlock -> List Char -> Int -> IO (MutBlock, Int)
+    fef bs [] pos = pure (bs,pos)
+    fef bs (c :: cs) pos = if len > pos
+      then setByte bs pos (cast (cast {to=Int} c)) *> fef bs cs (pos+1)
+      else pure (bs, pos)
+
 
 -------------------------------------------------
 -- Folding
@@ -256,10 +273,10 @@ foldl : (a -> Word8 -> a) -> a -> Bytes -> a
 foldl f v (MkB b pos len)
     = unsafePerformIO $ go v pos (len + pos)
   where
-    go : a -> (pos1 : Int) -> (pos2 : Int) -> IO a
+    go : a -> (start : Int) -> (end : Int) -> IO a
     go z p q
       = if p >= q then pure z
-                  else go (f z !(getByte b p)) (p+1) q
+                  else assert_total $ go (f z !(getByte b p)) (p+1) q
 
 -- TODO: consider foldl', foldl with a lazy accumulator
 
@@ -275,12 +292,12 @@ foldl1' f b = foldl f (head' b) (tail'
 export
 foldr : (Word8 -> a -> a) -> a -> Bytes -> a
 foldr f v (MkB bs pos len)
-    = unsafePerformIO $ go v (len + pos) pos
+    = unsafePerformIO $ go v pos (len + pos - 1)
   where
-    go : a -> (pos1 : Int) -> (pos1 : Int) -> IO a
+    go : a -> (start : Int) -> (end : Int) -> IO a
     go z p q
-      = if p <= q then pure z
-                  else go (f !(getByte bs p) z) (p-1) q
+      = if p > q then pure z
+                 else assert_total $ go (f !(getByte bs q) z) p (q-1)
 
 -- TODO: consider foldr', foldr with a lazy accumulator
 
@@ -310,7 +327,7 @@ map f (MkB b0 pos len)
                              else do
                                x <- getByte b0 (pos + p)
                                setByte buf p (f x)
-                               map_ (p+1) q buf
+                               assert_total $ map_ (p+1) q buf
 
 -- foldl with a state passed along
 mapAccumL : (s -> Word8 -> (s, Word8)) -> s -> Bytes -> (s, Bytes)

@@ -1,7 +1,7 @@
 module Data.Word.Word8
 
--- Not yet, kinks to work out with totality checking
--- %default total
+-- We'll remove this module once Bits8 has more casts. Casting an Int to Integer
+-- to cast to Bits8 isn't ideal.
 
 -- TODO: Add modulo to base to incentivise backend support.
 -- In Idris2 currently mod is really rem!
@@ -73,6 +73,16 @@ export
 implementation
 Cast Word8 Int where
   cast (W8 i) = i
+
+export
+implementation
+Cast Word8 Bits8 where
+  cast = believe_me
+
+export
+implementation
+Cast Bits8 Word8 where
+  cast = W8 . believe_me
 
 export
 Show Word8 where

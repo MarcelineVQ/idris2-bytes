@@ -1,7 +1,7 @@
 package bytes
 
 authors    = "MarcelineVQ"
-version    = "1.7.4.1"
+version    = "1.7.5.1"
 readme     = "README.md"
 
 homepage   = "https://github.com/MarcelineVQ/idris2-bytes"
@@ -11,7 +11,7 @@ bugtracker = "https://github.com/MarcelineVQ/idris2-bytes/issues"
 license    = "CC0 (refer to LICENSE file)"
 brief      = "Immutable chunks of bytes for Idris2"
 
-modules = Data.Bytes
+modules = Data.Bytes.Strict
         , Data.Bytes.Strict.Internal
         , Data.Bytes.Strict.API
         , Data.Bytes.Strict.IO

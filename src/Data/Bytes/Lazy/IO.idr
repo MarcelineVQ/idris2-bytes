@@ -22,7 +22,7 @@ module Data.Bytes.Lazy.IO
 
 
 import Data.Bytes.Lazy
-import Data.Bytes
+import Data.Bytes.Strict
 import Data.Bytes.Util
 
 import Data.Word.Word8

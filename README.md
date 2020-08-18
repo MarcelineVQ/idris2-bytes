@@ -1,6 +1,8 @@
 Bytes
 =====
 
+This package was going to feature Lazy Bytes but work was done on a streaming lib instead. There's no reason to repeat the mistakes of Lazy IO and streaming does the job of having Lazy Bytes anyway.
+
 This is a [ByteString](http://hackage.haskell.org/package/bytestring)-style library for the [Idris2](https://github.com/idris-lang/Idris2) dependent programming language.
 
 Its name is due to how overused, and thus misleading, the term String is.  

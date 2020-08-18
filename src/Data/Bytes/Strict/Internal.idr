@@ -9,6 +9,7 @@ import Data.Strings -- fastAppend
 import Data.List    -- intersperse
 import Data.So      -- for our NonEmpty
 
+%default total
 
 private
 moduleName : String
@@ -155,7 +156,7 @@ compareBytes (MkB xb xpos xlen) (MkB yb ypos ylen) =
     go k j xb yb
       = do EQ <- [| getByte xb (xpos + k) `compare` getByte yb (ypos + j) |]
              | res => pure res
-           go (k-1) (j-1) xb yb
+           assert_total $ go (k-1) (j-1) xb yb
 
 
 -- Offset will tend to be 0 so we first compare length, then block object
@@ -228,4 +229,23 @@ concat bs = let maxlen = getLen bs
                        else do copyBlock b pos len buf n_pos
                                go (n_pos + len) end bs buf
 
+export
+total
+concat' : List Bytes -> Maybe Bytes
+concat' bs = let maxlen = getLen bs
+             in (\l => unsafeCreateBytes l (go 0 (l-1) bs)) <$> maxlen
+  where
+    getLen : List Bytes -> Maybe Int
+    getLen [] = Just 0                -- Check overflow of Int, which would be bad.
+    getLen (MkB _ _ len :: bs) =
+      getLen bs >>= \v => let v = len + v
+                          in if v >= 0 then Just v
+                                       else Nothing
+    
+    go : (buf_pos : Int) -> (end : Int) -> List Bytes -> MutBlock -> IO ()
+    go n_pos end [] buf = pure ()
+    go n_pos end (MkB b pos len :: bs) buf
+      = if n_pos > end then pure ()
+                       else do copyBlock b pos len buf n_pos
+                               go (n_pos + len) end bs buf
 

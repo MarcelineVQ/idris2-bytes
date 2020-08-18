@@ -1,6 +1,6 @@
 module Data.Bytes.Lazy.Internal
 
-import Data.Bytes
+import Data.Bytes.Strict
 
 private
 moduleName : String
